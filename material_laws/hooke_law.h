@@ -63,6 +63,9 @@ class HookeLaw
 		}*/
 
 	private:
+		void strainTensor(MathMatrix<dim,dim>& strainTens, const MathMatrix<dim, dim>& GradU);
+
+	private:
 	/// elasticity tensor
 		MathTensor4<dim, dim, dim, dim> m_ElastTensorFunct;
 

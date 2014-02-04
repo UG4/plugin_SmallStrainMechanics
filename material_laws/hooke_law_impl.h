@@ -34,9 +34,7 @@ stressTensor(MathMatrix<dim,dim>& stressTens, const LocalVector& u, const MathMa
 
 	//	get linearized strain tensor (eps) at ip
 	MathMatrix<dim, dim> strainTens;
-	for(size_t i = 0; i < (size_t) dim; ++i)
-		for(size_t j = 0; j < (size_t) dim; ++j)
-			strainTens[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
+	strainTensor(strainTens, GradU);
 
 	//TensContract4(sigma, m_ElastTensorFunct, eps);
 
@@ -67,6 +65,17 @@ elasticityTensor(MathTensor4<dim,dim,dim,dim>& elastTens, const LocalVector& u,
 
 	//elastTens = m_ElastTensorFunct;
 	return;
+}
+
+template<int dim>
+inline
+void
+HookeLaw<dim>::
+strainTensor(MathMatrix<dim,dim>& strainTens, const MathMatrix<dim, dim>& GradU)
+{
+	for(size_t i = 0; i < (size_t) dim; ++i)
+		for(size_t j = 0; j < (size_t) dim; ++j)
+			strainTens[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
 }
 
 template<int dim>
