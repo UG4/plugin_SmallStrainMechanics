@@ -1,12 +1,12 @@
 /*
- * small_strain_mechanics.h
+ * small_strain_mech.h
  *
  *  Created on: 16.05.2012
  *      Author: raphaelprohl, Andreas Vogel
  */
 
-#ifndef SMALL_STRAIN_MECHANICS_H_
-#define SMALL_STRAIN_MECHANICS_H_
+#ifndef SMALL_STRAIN_MECH_H_
+#define SMALL_STRAIN_MECH_H_
 
 #include <stdio.h>
 #include <string>
@@ -487,4 +487,4 @@ class SmallStrainMechanicsElemDisc
 } //end of namespace SmallStrainMechanics
 } //end of namespace ug
 
-#endif /* SMALL_STRAIN_MECHANICS_H_ */
+#endif /* SMALL_STRAIN_MECH_H_ */

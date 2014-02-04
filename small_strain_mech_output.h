@@ -1,12 +1,12 @@
 /*
- * small_strain_mechanics_output.h
+ * small_strain_mech_output.h
  *
  *  Created on: 21.03.2013
  *      Author: raphaelprohl
  */
 
-#ifndef SMALL_STRAIN_MECHANICS_OUTPUT_H_
-#define SMALL_STRAIN_MECHANICS_OUTPUT_H_
+#ifndef SMALL_STRAIN_MECH_OUTPUT_H_
+#define SMALL_STRAIN_MECH_OUTPUT_H_
 
 
 namespace ug{
@@ -37,6 +37,6 @@ class SmallStrainMechOutput
 } //end of namespace SmallStrainMechanics
 } //end of namespace ug
 
-#include "small_strain_mechanics_output_impl.h"
+#include "small_strain_mech_output_impl.h"
 
-#endif /* SMALL_STRAIN_MECHANICS_OUTPUT_H_ */
+#endif /* SMALL_STRAIN_MECH_OUTPUT_H_ */

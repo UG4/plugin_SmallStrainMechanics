@@ -15,7 +15,7 @@
 #include "lib_algebra/active_set/lagrange_multiplier_disc_interface.h"
 
 // intern headers
-#include "../small_strain_mechanics.h"
+#include "../small_strain_mech.h"
 
 using namespace std;
 

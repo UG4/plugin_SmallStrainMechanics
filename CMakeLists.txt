@@ -13,8 +13,8 @@ include("../../../cmake/ug_plugin_includes.cmake")
 
 
 # sources
-set(SOURCES	small_strain_mechanics.cpp
-			small_strain_mechanics_plugin.cpp)
+set(SOURCES	small_strain_mech.cpp
+			small_strain_mech_plugin.cpp)
 
 
 

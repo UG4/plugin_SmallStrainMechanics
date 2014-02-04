@@ -1,12 +1,12 @@
 /*
- * linear_elastoplasticity.cpp
+ * small_strain_mech.cpp
  *
  *  Created on: 16.05.2012
  *      Author: raphaelprohl, Andreas Vogel
  */
 
-#include "small_strain_mechanics.h"
-#include "small_strain_mechanics_tools_impl.h"
+#include "small_strain_mech.h"
+#include "small_strain_mech_tools_impl.h"
 
 // for various user data
 #include "bindings/lua/lua_user_data.h"

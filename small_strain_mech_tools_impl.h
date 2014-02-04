@@ -1,5 +1,5 @@
 /*
- * small_strain_mechanics_tools_impl.h
+ * small_strain_mech_tools_impl.h
  *
  *  Created on: 16.05.2012
  *      Author: raphaelprohl, Andreas Vogel

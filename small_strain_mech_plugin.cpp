@@ -1,5 +1,5 @@
 /*
- * small_strain_mechanics_plugin.cpp
+ * small_strain_mech_plugin.cpp
  *
  *  Created on: 16.05.2012
  *      Author: raphaelprohl, Andreas Vogel
@@ -10,8 +10,8 @@
 
 #include "lib_disc/function_spaces/grid_function.h"
 
-#include "small_strain_mechanics.h"
-#include "small_strain_mechanics_output.h"
+#include "small_strain_mech.h"
+#include "small_strain_mech_output.h"
 #include "contact/contact.h"
 
 #include "material_laws/hooke_law.h"
