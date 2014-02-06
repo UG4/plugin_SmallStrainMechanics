@@ -21,6 +21,7 @@
 #include "lib_disc/spatial_disc/user_data/data_import.h"
 
 #include "material_laws/mat_law_interface.h"
+#include "output_writer/mech_output_writer.h"
 
 namespace ug{
 namespace SmallStrainMechanics{
@@ -89,18 +90,13 @@ class SmallStrainMechanicsElemDisc
 	///	destructor
 		virtual	~SmallStrainMechanicsElemDisc();
 
-	///	set elasticity tensor for orthotropic materials
-		void set_elasticity_tensor_orthotropic(
-				const number C11, const number C12, const number C13,
-							const number C22, const number C23,
-										const number C33,
-												const number C44,
-														const number C55,
-																const number C66 );
+	///	adds a material law
+		void add_material_law(SmartPtr<IMaterialLaw<TDomain> > spMatLaw)
+		{ m_spMatLaw = spMatLaw;}
 
-	///	set hooke elasticity tensor for isotropic materials, (in 2D: plane-strain-case)
-		void set_hooke_elasticity_tensor(const number lambda, const number mu);
-		void set_hooke_elasticity_tensor_E_nu(const number E,const number nu);
+	///	set an output writer
+		void set_output_writer(SmartPtr<IMechOutputWriter> spOutWriter)
+		{ m_spOutWriter = spOutWriter;}
 
 	///	set volume forces
 		void set_volume_forces(SmartPtr<CplUserData<MathVector<dim>, dim> > user);
@@ -123,10 +119,10 @@ class SmallStrainMechanicsElemDisc
 		///	\}
 
 
-	///	use elastoplastic material behavior
-		void use_elastoplast_mat_behavior(const bool elastplast){ m_bUsePlasticity = elastplast;}
+	///	add mass jacobian
+		void add_mass_jacobian(const bool bMassJac){ m_bAddMassJac = bMassJac;}
 
-		std::string hardening_config_string() const
+		/*std::string hardening_config_string() const
 		{
 			std::stringstream ss;
 			switch (m_hardening)
@@ -140,33 +136,7 @@ class SmallStrainMechanicsElemDisc
 					return ss.str();
 			}
 			return "unknown hardening behaviour";
-		}
-	///	set hardening behavior
-		void set_hardening_behavior(int hard)
-		{
-			switch (hard)
-			{
-				//	perfect hardening
-				case 0: m_hardening = 0; break;
-
-				//	linear hardening
-				case 1: m_hardening = 1; matConsts.Hard = 129.24; break;
-
-				//	exponential hardening
-				case 2: m_hardening = 2; matConsts.Hard = 129.24;
-						matConsts.omega = 16.93; m_MaxHardIter = 100;
-						m_HardAccuracy = 1e-10; break;
-
-				default: UG_THROW(hard << " is not a valid hardening behavior! "
-						"Choose 0 (perfect), 1 (linear) or 2 (exponential) ! \n");
-			}
-
-			matConsts.K_0 = 450.00; //= 450e6 Pa
-			matConsts.K_inf = 715.00;
-		}
-
-	///	use numerical approximation the tangent; tanAccur: tangent-accuracy
-		void use_approx_tangent(const number tanAccur){m_tangentAccur = tanAccur;}
+		}*/
 
 	///	sets the quad order
 		void set_quad_order(const size_t order) {m_quadOrder = order; m_bQuadOrderUserDef = true;}
@@ -245,10 +215,10 @@ class SmallStrainMechanicsElemDisc
 			if(m_bQuadOrderUserDef)
 				ss << " User Defined Quad Order = " << m_quadOrder << "\n";
 
-			ss << " Use Plasticity is " << (m_bUsePlasticity ? "ON" : "OFF") << "\n";
-			ss << " Hardening: " << ConfigShift(hardening_config_string()) << "\n";
-			ss << " TangentAccuracy = " << m_tangentAccur << "\n";
-			ss << " Elasticity Configuration: " << ConfigShift(m_materialConfiguration) << "\n";
+			//ss << " Use Plasticity is " << (m_bUsePlasticity ? "ON" : "OFF") << "\n";
+			//ss << " Hardening: " << ConfigShift(hardening_config_string()) << "\n";
+			//ss << " TangentAccuracy = " << m_tangentAccur << "\n";
+			//ss << " Elasticity Configuration: " << ConfigShift(m_materialConfiguration) << "\n";
 			return ss.str();
 		}
 
@@ -307,15 +277,6 @@ class SmallStrainMechanicsElemDisc
 				             bool bDeriv,
 				             std::vector<std::vector<MathVector<dim> > > vvvDeriv[]);
 
-
-	protected:
-		virtual void approximation_space_changed()
-		{
-			clear_attachments();
-			attach_attachments();
-		}
-
-
 	private:
 	///	updates the geometry for a given element
 		void update_geo_elem(TBaseElem* elem, DimFEGeometry<dim>& geo);
@@ -327,63 +288,7 @@ class SmallStrainMechanicsElemDisc
 	///	get trace and deviatoric part of a matrix
 		number MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev);
 
-		template<typename TFEGeom>
-		void DisplacementGradient(MathMatrix<dim, dim>& GradU, const TFEGeom& geo,
-				const LocalVector& u, const size_t ip);
-
-		number Hardening(const number alpha);
-
-		number Hardening_d(const number alpha);
-
-		number PerfectPlasticity(const number flowcondtrial);
-
-		number LinearHardening(const number flowcondtrial);
-
-		number ExponentialHardening(const number strialnorm,
-				const number alpha, const number mu);
-
-		void Update(const MathMatrix<dim, dim>& GradU, const MathMatrix<dim, dim>& eps_p_old_t,
-				MathMatrix<dim, dim>& eps_p_new, number& alpha);
-
-		void Flowrule(const MathMatrix<dim, dim>& GradU, const MathMatrix<dim, dim>& eps_p_old_t,
-				const number alpha, MathMatrix<dim, dim>& strial, number& gamma,
-				MathMatrix<dim, dim>& normal, MathMatrix<dim, dim>& eps,
-				MathMatrix<dim, dim>& eps_p_new);
-
-		void ConstLaw(const MathMatrix<dim, dim>& eps, const MathMatrix<dim, dim>& strial,
-				const number& gamma, const MathMatrix<dim, dim>& normal, MathMatrix<dim, dim>& T);
-
-		void StressTensor(MathMatrix<dim, dim>& sigma, const MathMatrix<dim, dim>& GradU,
-				const MathMatrix<dim, dim>& eps_p_old_t, const number alpha);
-
-		void TangentNumApprox(MathTensor4<dim, dim, dim, dim>& C, MathMatrix<dim, dim> GradU,
-				const MathMatrix<dim, dim>& eps_p_old_t, const number alpha);
-
-		void TensContract4(MathMatrix<dim, dim>& m_out,
-				const MathTensor4<dim, dim, dim, dim>& tens4, const MathMatrix<dim, dim>& tens2);
-
-
 	private:
-	///	use this method to make sure that all required attachments are attached
-	/**	This method won't be necessary if we attach m_aElemData during initialization.*/
-		void attach_attachments()
-		{
-			typename TDomain::grid_type& grid = *this->domain()->grid();
-	//todo:	Move this to an initialization routine. Best would probably to make
-	//		set_domain(...) of the base class virtual and to attach m_aElemData there.
-			grid.template attach_to<TBaseElem>(m_aElemData);
-			m_aaElemData.access(grid, m_aElemData);
-		}
-
-		void clear_attachments()
-		{
-			typename TDomain::grid_type& grid = *this->domain()->grid();
-			if(grid.template has_attachment<TBaseElem>(m_aElemData)){
-				grid.template detach_from<TBaseElem>(m_aElemData);
-				m_aaElemData.invalidate();
-			}
-		}
-
 		///	sets the requested assembling routines
 		void set_assemble_funcs();
 
@@ -392,6 +297,16 @@ class SmallStrainMechanicsElemDisc
 		void register_fe_func();
 
 	private:
+	///	material law
+		SmartPtr<IMaterialLaw<TDomain> > m_spMatLaw;
+
+	///	elasticity tensor
+		SmartPtr<MathTensor4<dim,dim,dim,dim> > m_spElastTensor;
+
+	///	output writer
+		SmartPtr<IMechOutputWriter> m_spOutWriter;
+
+
 	///	current order of disc scheme
 		int m_order;
 
@@ -402,46 +317,14 @@ class SmallStrainMechanicsElemDisc
 		bool m_bQuadOrderUserDef;
 		int m_quadOrder;
 
-	/// elasticity tensor
-		MathTensor4<dim, dim, dim, dim> m_ElastTensorFunct;
-
 	///	data import for volume forces
 		DataImport<MathVector<dim>, dim > m_imVolForce;
 
 	///	Data import for the reaction term
 		DataImport<number, dim> m_imPressure;
 
-	/// elastoplastic material behavior
-		bool m_bUsePlasticity;
-
-	/// hardening behavior
-		int m_hardening;
-		size_t m_MaxHardIter;
-		number m_HardAccuracy;
-
-		struct MaterialConstants{
-			number mu;		//	shear modulus
-			number kappa;	//	bulk modulus
-			number K_0; 	//	initial flow-stress:
-			number K_inf; 	//	residual flow-stress (saturation stress)
-			number Hard;	//	linear hardening modulus
-			number omega;	//	hardening exponent
-
-			std::string config_string() const
-			{
-				std::stringstream ss;
-				ss << "MaterialConstant:\n";
-				if(mu != 0.0) ss << " shear modulus mu = " << mu << "\n";
-				if(kappa != 0.0) ss << " bulk modulus kappa = " << kappa << "\n";
-				if(K_inf != 0.0) ss << " residual flow-stress (saturation stress) K_inf = " << K_inf << "\n";
-				if(Hard != 0.0)  ss << " linear hardening modulus = " << Hard << "\n";
-				if(omega != 0.0) ss << " hardening exponent omega = " << omega;
-				return ss.str();
-			}
-		}matConsts;
-
-	/// tangent accuracy
-		number m_tangentAccur;
+	/// add mass jacobian
+		bool m_bAddMassJac;
 
 	///	compute stress-eigenvalues / normalStress at specific corner
 		bool m_stressEV;
@@ -460,23 +343,6 @@ class SmallStrainMechanicsElemDisc
 
 	///	output-file
 		FILE *m_outFile;
-
-	/// attached ElemData
-		struct PlasticUserData {
-			MathMatrix<dim, dim> eps_p_old_t; 	//plastic part of strain tensor wrt to last time step
-			number alpha;						//hardening variable
-		};
-
-		struct ElemData{
-			std::vector<PlasticUserData> data; 	//std-vector of PlasticUserData
-		};
-
-		ElemData* m_pElemData;
-
-		typedef Attachment<ElemData> AElemData; 	//attachment type: attachment of ElemDatas
-		AElemData m_aElemData;						//the instance of the attachment type
-		typedef Grid::AttachmentAccessor<TBaseElem, AElemData>	ElemDataAccessor;
-		ElemDataAccessor m_aaElemData;
 
 		std::string m_materialConfiguration;
 };

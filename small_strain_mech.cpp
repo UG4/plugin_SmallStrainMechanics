@@ -15,6 +15,17 @@
 #include "lib_disc/spatial_disc/disc_util/geom_provider.h"
 #include "lib_disc/spatial_disc/disc_util/fe_geom.h"
 
+#define PROFILE_SMALL_STRAIN_MECH
+#ifdef PROFILE_SMALL_STRAIN_MECH
+	#define SMALL_STRAIN_MECH_PROFILE_FUNC()		PROFILE_FUNC_GROUP("Small Strain Mech")
+	#define SMALL_STRAIN_MECH_PROFILE_BEGIN(name)	PROFILE_BEGIN_GROUP(name, "Small Strain Mech")
+	#define SMALL_STRAIN_MECH_PROFILE_END()		PROFILE_END()
+#else
+	#define SMALL_STRAIN_MECH_PROFILE_FUNC()
+	#define SMALL_STRAIN_MECH_PROFILE_BEGIN(name)
+	#define SMALL_STRAIN_MECH_PROFILE_END()
+#endif
+
 using namespace std;
 
 namespace ug {
@@ -144,61 +155,60 @@ void
 SmallStrainMechanicsElemDisc<TDomain>::
 init_state_variables(const size_t order)
 {
-	if (m_bUsePlasticity == true)
-	{
+	//	call OutputWriter
+	//m_spOutWriter->preprocess();
+	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechInit_state_variables);
 
-	#ifdef UG_PARALLEL
-		if (pcl::GetProcRank() == 0){
-			m_outFile = fopen("sig_eigen.dat", "w");
-		}
-	#else
+#ifdef UG_PARALLEL
+	if (pcl::GetProcRank() == 0){
 		m_outFile = fopen("sig_eigen.dat", "w");
-	#endif
-
-		DimFEGeometry<dim> geo;
-		SmartPtr<TDomain> dom = this->domain();
-		typename TDomain::grid_type& grid = *(dom->grid());
-
-		/*  Attachment of CP-Matrix and hardening value to an element (IP-wise):
-			We loop all elements in grid/multigrid */
-
-		typedef typename TDomain::grid_type::template traits<TBaseElem>::iterator
-				ElemIter;
-
-		m_order = order;
-		m_lfeID = LFEID(LFEID::LAGRANGE, dim, order);
-		UG_LOG("\n");
-		//	set default quadrature order if not set by user
-		if (!m_bQuadOrderUserDef) {
-			m_quadOrder = 2 * order + 1;
-			UG_LOG("Default QuadOrder is set in 'init_state_variables';"
-					"QuadOrder:" << m_quadOrder << "\n");
-		}
-		UG_LOG("In init_state: Order: " << m_order << " QuadOrder: "
-				<< m_quadOrder << "\n");
-
-		/*	here the attachment is attached to the whole grid/multigrid
-		 * 	and it remains attached until the SmallStrainMechanicsElemDisc-class
-		 * 	destructor! */
-		for (ElemIter iter = grid.template begin<TBaseElem> (); iter
-				!= grid.template end<TBaseElem> (); iter++)
-		{
-			TBaseElem* elem = *iter;
-
-			update_geo_elem(elem, geo);
-
-			m_aaElemData[elem].data.resize(geo.num_ip());
-
-			// 	set plastic strain (eps_p) and hardening variable (alpha)
-			//	to zero at every ip (in ElemData-struct)
-			for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-			{
-				m_aaElemData[elem].data[ip].eps_p_old_t = 0.0;
-				m_aaElemData[elem].data[ip].alpha = 0.0;
-			}
-
-		}//end (ElemIter)
 	}
+#else
+	m_outFile = fopen("sig_eigen.dat", "w");
+#endif
+
+	DimFEGeometry<dim> geo;
+	SmartPtr<TDomain> dom = this->domain();
+	typename TDomain::grid_type& grid = *(dom->grid());
+
+	//  Attachment of CP-Matrix and hardening value to an element (IP-wise):
+	//	We loop all elements in grid/multigrid
+
+	typedef typename TDomain::grid_type::template traits<TBaseElem>::iterator
+			ElemIter;
+
+	//	TODO: is this necessary here???? Or do I only need num_ip?
+	m_order = order;
+	m_lfeID = LFEID(LFEID::LAGRANGE, dim, order);
+	UG_LOG("\n");
+	//	set default quadrature order if not set by user
+	if (!m_bQuadOrderUserDef) {
+		m_quadOrder = 2 * order + 1;
+		UG_LOG("Default QuadOrder is set in 'init_state_variables';"
+				"QuadOrder:" << m_quadOrder << "\n");
+	}
+	UG_LOG("In init_state: Order: " << m_order << " QuadOrder: "
+			<< m_quadOrder << "\n");
+
+	//	clears and then attaches the attachments for the internal variables
+	//	to the grid
+	m_spMatLaw->clear_attachments(grid);
+	m_spMatLaw->attach_internal_vars(grid);
+
+	//	here the attachment is attached to the whole grid/multigrid
+	 // 	and it remains attached until the SmallStrainMechanicsElemDisc-class
+	 // 	destructor!
+	for (ElemIter iter = grid.template begin<TBaseElem> (); iter
+			!= grid.template end<TBaseElem> (); iter++)
+	{
+		TBaseElem* elem = *iter;
+		update_geo_elem(elem, geo);
+
+		m_spMatLaw->init_internal_vars(elem, geo.num_ip());
+
+	}//end (ElemIter)
+
+	SMALL_STRAIN_MECH_PROFILE_END();
 }
 
 template<typename TDomain>
@@ -207,6 +217,9 @@ void SmallStrainMechanicsElemDisc<TDomain>::
 prep_timestep_elem(const number time, const LocalVector& u,
 		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
 {
+	//	call OutputWriter
+	//m_spOutWriter->pre_timestep();
+
 	m_max_gamma = 0.0;
 	m_bIP_values_written = false;
 }
@@ -219,7 +232,16 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 	// all this will be performed outside of the loop over the elements.
 	// Therefore it is not time critical.
 
-//	request geometry
+	//	check, if a material law is set
+	if (m_spMatLaw.invalid())
+		UG_THROW("No material law set in "
+				"SmallStrainMechanicsElemDisc::prep_elem_loop \n");
+
+	//	TODO: this only needs to be checked once at the beginning!
+	if (!m_spMatLaw->is_initialized())
+		m_spMatLaw->init();
+
+	//	request geometry
 	TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
 	//	prepare geometry for type and order
@@ -232,7 +254,6 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 	static const int refDim = TElem::dim;
 	m_imVolForce.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 	m_imPressure.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
-
 }
 
 template<typename TDomain>
@@ -257,8 +278,8 @@ prep_elem(const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCo
 	//	set global positions for rhs
 	m_imVolForce.set_global_ips(geo.global_ips(), geo.num_ip());
 
-	//  pointer to elementData of current elem
-	if (m_bUsePlasticity == true) m_pElemData = &m_aaElemData[static_cast<TElem*>(elem)];
+	//	set pointer to internal variables of elem
+	m_spMatLaw->internal_vars(static_cast<TElem*>(elem));
 }
 
 //  assemble stiffness jacobian
@@ -268,37 +289,24 @@ void SmallStrainMechanicsElemDisc<TDomain>::
 add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
 {
-	/* for an elasto-plastic material law, it could be useful
-	 * to use numerical differentiation to get the ElasticityTensor
-	 * ("TangentNumApprox")*/
+	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechAddJacA);
 
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
-	MathTensor4<dim, dim, dim, dim> A;
 	MathMatrix<dim, dim> GradU;
 
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
-		if (m_bUsePlasticity == true)
-		{
-			MathMatrix<dim, dim>& eps_p_old_t = m_pElemData->data[ip].eps_p_old_t;
-			number alpha = m_pElemData->data[ip].alpha;
-
-			DisplacementGradient<TFEGeom>(GradU, geo, u, ip);
-			TangentNumApprox(A, GradU, eps_p_old_t, alpha);
-		}
-
-		// select Tensor: A,   iff (m_bUsePlasticity == true)
-		//                std, iff (m_bUsePlasticity == false)
-		const MathTensor4<dim, dim, dim, dim> &myTensor
-			= (m_bUsePlasticity) ? A : m_ElastTensorFunct;
-
+		//	TODO: think about moving the call of 'DisplacementGradient',
+		//	since it is not used for Hooke`s linear elastic law!
+		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
+		m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
 
 		// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
-		for (size_t a = 0; a < geo.num_sh(); ++a){ // loop shape functions
+		for (size_t a = 0; a < geo.num_sh(); ++a){ 				// loop shape functions
 			for (size_t i = 0; i < (size_t) TDomain::dim; ++i){ // loop component
-				for (size_t b = 0; b < geo.num_sh(); ++b){ // shape functions
+				for (size_t b = 0; b < geo.num_sh(); ++b){ 		// shape functions
 					for (size_t j = 0; j < (size_t) TDomain::dim; ++j) // loop component
 					{
 						number integrandC = 0.0;
@@ -308,7 +316,7 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 							for (size_t L = 0; L < (size_t) dim; ++L)
 							{
 								integrandC += geo.global_grad(ip, a)[K]
-										* myTensor[i][K][j][L]
+										* (*m_spElastTensor)[i][K][j][L]
 										* geo.global_grad(ip, b)[L];
 							}
 						}
@@ -331,9 +339,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::
 add_jac_M_elem(LocalMatrix& J, const LocalVector& u,
 		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
 {
-
-	//	temporarily add_jac_M is only implemented for elastic material behavior
-	if(!m_bUsePlasticity)
+	if(m_bAddMassJac)
 	{
 		//	request geometry
 		const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
@@ -361,6 +367,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::
 add_def_A_elem(LocalVector& d, const LocalVector& u,
 		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
 {
+	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechAddDefA);
 	//if (0){
 		//	request geometry
 	/*	static const typename TGeomProvider::Type& geo = TGeomProvider::get();
@@ -424,25 +431,8 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
 		//	compute cauchy-stress tensor sigma at a ip
-		DisplacementGradient<TFEGeom>(GradU, geo, u, ip);
-
-		//	compute sigma stress tensor at ip
-		if (m_bUsePlasticity == true)
-		{
-			MathMatrix<dim, dim>& eps_p_old_t = m_pElemData->data[ip].eps_p_old_t;
-			number alpha = m_pElemData->data[ip].alpha;
-
-			StressTensor(sigma, GradU, eps_p_old_t, alpha);
-		}
-		else{
-			//	get linearized strain tensor (eps) at ip
-			MathMatrix<dim, dim> eps;
-			for(size_t i = 0; i < (size_t) dim; ++i)
-				for(size_t j = 0; j < (size_t) dim; ++j)
-					eps[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
-
-			TensContract4(sigma, m_ElastTensorFunct, eps);
-		}
+		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
+		m_spMatLaw->stressTensor(sigma, ip, GradU);
 
 		for (size_t a = 0; a < geo.num_sh(); ++a){ // loop shape functions
 			for (size_t i = 0; i < num_fct(); ++i) // loop components
@@ -483,11 +473,8 @@ add_rhs_elem(LocalVector& d, GeometricObject* elem, const MathVector<dim> vCorne
 
 	 for(size_t ip = 0; ip < geo.num_ip(); ++ip){ // loop ip
 		 for(size_t a = 0; a < geo.num_sh(); ++a){ // loop shape functions
-			 for(size_t i = 0; i < num_fct(); ++i) // loop component
-			 {
-				 const number volumeForceIP = m_imVolForce[ip][i] * geo.shape(ip, a) * geo.weight(ip);
-
-				 d(i,a) += volumeForceIP;
+			 for(size_t i = 0; i < num_fct(); ++i){ // loop component
+				 d(i,a) += m_imVolForce[ip][i] * geo.shape(ip, a) * geo.weight(ip);
 			 }
 		 }
 	}
@@ -564,6 +551,8 @@ void SmallStrainMechanicsElemDisc<TDomain>::
 fsh_timestep_elem(const number time, const LocalVector& u,
 		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
 {
+	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechFshTimeStepElem);
+
 	SmartPtr<TDomain> dom = this->domain();
 	typedef typename IElemDisc<TDomain>::domain_type::position_accessor_type
 			position_accessor_type;
@@ -578,8 +567,11 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 	UG_CATCH_THROW("SmallStrainMechanics::fsh_timestep_elem:"
 					" Cannot update Finite Element Geometry.");
 
-	//  pointer to elementData of current elem
-	if (m_bUsePlasticity == true) m_pElemData = &m_aaElemData[static_cast<TElem*>(elem)];
+	//  pointer to internal variable of current elem
+	m_spMatLaw->internal_vars(static_cast<TElem*>(elem));
+
+	//	call OutputWriter
+	//m_spOutWriter->post_timestep(geo, elem, dim);
 
 	MathMatrix<dim, dim> GradU;
 
@@ -618,27 +610,8 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 			for (vector<size_t>::iterator it = vNextIP.begin();
 							it != vNextIP.end(); ++it)
 			{
-				DisplacementGradient<TFEGeom> (GradU, geo, u, *it);
-
-				//	compute sigma stress tensor at ip
-				if (m_bUsePlasticity == true)
-				{
-					MathMatrix<dim, dim>& eps_p_old_t = m_pElemData->data[*it].eps_p_old_t;
-					number alpha = m_pElemData->data[*it].alpha;
-
-					StressTensor(Sig, GradU, eps_p_old_t, alpha);
-				}
-				else
-				{
-					MathMatrix<dim, dim> eps;
-
-					//	get linearized strain tensor (eps) at ip
-					for(size_t i = 0; i < (size_t) dim; ++i)
-						for(size_t j = 0; j < (size_t) dim; ++j)
-							eps[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
-
-					TensContract4(Sig, m_ElastTensorFunct, eps);
-				}
+				m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, *it, geo, u);
+				m_spMatLaw->stressTensor(Sig, *it, GradU);
 
 				if (dim == 3)
 				{
@@ -718,27 +691,8 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 			for (vector<size_t>::iterator it = vNextIP.begin();
 							it != vNextIP.end(); ++it)
 			{
-				DisplacementGradient<TFEGeom> (GradU, geo, u, *it);
-
-				//	compute sigma stress tensor at ip
-				if (m_bUsePlasticity == true)
-				{
-					MathMatrix<dim, dim>& eps_p_old_t = m_pElemData->data[*it].eps_p_old_t;
-					number alpha = m_pElemData->data[*it].alpha;
-
-					StressTensor(Sig, GradU, eps_p_old_t, alpha);
-				}
-				else
-				{
-					MathMatrix<dim, dim> eps;
-
-					//	get linearized strain tensor (eps) at ip
-					for(size_t i = 0; i < (size_t) dim; ++i)
-						for(size_t j = 0; j < (size_t) dim; ++j)
-							eps[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
-
-					TensContract4(Sig, m_ElastTensorFunct, eps);
-				}
+				m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, *it, geo, u);
+				m_spMatLaw->stressTensor(Sig, *it, GradU);
 
 				UG_LOG("At " << geo.global_ip(*it) << ": \n");
 				UG_LOG("sigma_xx: " << Sig[0][0] << "\n");
@@ -753,20 +707,13 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 	}
 
 	//	UPDATE PLASTIC STRAINS 'eps_p' AND HARDENING VARIABLE 'alpha'
-	if (m_bUsePlasticity == true)
+	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
-		for (size_t ip = 0; ip < geo.num_ip(); ++ip) // loop ip
-		{
-			//  call "Update" to get eps_p_new (regarding time) and alpha at ip
-			MathMatrix<dim, dim>& eps_p_old_t = m_pElemData->data[ip].eps_p_old_t;
-			number alpha = m_pElemData->data[ip].alpha;
-
-			DisplacementGradient<TFEGeom> (GradU, geo, u, ip);
-			Update(GradU, eps_p_old_t, eps_p_old_t, alpha);
-
-			m_pElemData->data[ip].alpha = alpha;
-		}
+		//  update the internal (plastic) variables strain_p_new and alpha
+		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
+		m_spMatLaw->update_internal_vars(ip, GradU);
 	}
+
 }
 
 template<typename TDomain>
@@ -805,9 +752,9 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
    	UG_CATCH_THROW("SmallStrainMechanicsElemDisc::normal_stress_strain_loc:"
 					" Cannot update Finite Element Geometry.");
 
-	//  pointer to elementData of current elem
-	if (m_bUsePlasticity == true)
-		m_pElemData = &m_aaElemData[static_cast<TBaseElem*>(elem)];
+	//	m_pElemData = &m_aaElemData[static_cast<TBaseElem*>(elem)];
+	//  pointer to internal variable of current elem
+	m_spMatLaw->internal_vars(elem);
 
 	MathMatrix<dim, dim> GradU, eps, sigma, devSigma, SumEpsIP, SumSigmaIP;
 	number normDevSig, SumNormDevSigIP;
@@ -815,62 +762,24 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 	//	init summation-values
 	SumEpsIP = 0.0; SumSigmaIP = 0.0; SumNormDevSigIP = 0.0;
 
-	for(size_t ip = 0; ip < geo.num_ip(); ++ip) // loop ip
+	for(size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
-		//	get displacementGradient (GradU) and linearized strain tensor (eps) at ip
-		DisplacementGradient<DimFEGeometry<dim> >(GradU, geo, locU, ip);
+		//	get displacementGradient (GradU) and Cauchy stress-tensor sigma at ip
+		//DisplacementGradient<DimFEGeometry<dim> >(GradU, geo, locU, ip);
+		m_spMatLaw->template DisplacementGradient<DimFEGeometry<dim> >(GradU, ip, geo, locU);
+		m_spMatLaw->stressTensor(sigma, ip, GradU);
 
+		// 	get linearized strain tensor (eps) at ip
 		for (size_t i = 0; i < (size_t) dim; ++i)
 			for (size_t J = 0; J < (size_t) dim; ++J)
 				eps[i][J] = 0.5 * (GradU[i][J] + GradU[J][i]);
 
-		if (m_bUsePlasticity == true)
-		{
-			//	get eps_p and alpha at ip
-			MathMatrix<dim, dim>& eps_p_old_t = m_pElemData->data[ip].eps_p_old_t;
-			number alpha = m_pElemData->data[ip].alpha;
-
-			StressTensor(sigma, GradU, eps_p_old_t, alpha);
-			/*if (dim == 2)
-			{
-				for(size_t i = 0; i < (size_t) dim; ++i){
-					for(size_t j = 0; j < (size_t) dim; ++j){
-						Sig[i][j] = sigma[i][j];
-					}
-				}
-				Sig[0][2] = 0.0; Sig[1][2] = 0.0;
-				Sig[2][0] = 0.0; Sig[2][1] = 0.0;
-				Sig[2][2] = matConsts.mu * (sigma[0][0] + sigma[1][1]);
-			}*/
-		}
-		else
-		{
-			TensContract4(sigma, m_ElastTensorFunct, eps);
-			// TODO: correct if-case like above!
-			/*if (dim == 2)
-			{
-				sigma[0][2] = 0.0; sigma[1][2] = 0.0;
-				sigma[2][0] = 0.0; sigma[2][1] = 0.0;
-				sigma[2][2] = matConsts.mu * (sigma[0][0] + sigma[1][1]);
-			}*/
-		}
-
-		//	get stress tensor (sigma) at ip
-		//MathMatrix<3, 3> Sig;
-
 		//	get norm of deviator of sigma
 		MatDeviatorTrace(sigma, devSigma);
-		/*MathMatrix<3, 3> devSigma;
-
-		number trSig = Trace(Sig);
-		devSigma = Sig;
-		for (size_t i = 0; i < 3; ++i)
-			devSigma[i][i] -= 1.0 / 3.0 * trSig;*/
-
 		normDevSig = MatFrobeniusNorm(devSigma);
 
 		//	add values to local vector
-		for (size_t i = 0; i < (size_t) dim; ++i) // loop component
+		for (size_t i = 0; i < (size_t) dim; ++i)
 		{
 			SumEpsIP[i][i] += eps[i][i];
 			SumSigmaIP[i][i] += sigma[i][i];
@@ -942,24 +851,19 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 					vNextIP.push_back(ip);
 			}
 
-			MathMatrix<dim, dim> eps, sigma;
+			MathMatrix<dim, dim> sigma;
 
 			for (vector<size_t>::iterator it = vNextIP.begin();
 							it != vNextIP.end(); ++it)
 			{
 				//	get displacementGradient (GradU) and linearized strain tensor (eps) at ip
-				DisplacementGradient<DimFEGeometry<dim> >(GradU, geo, locU, *it);
-
-				for (size_t i = 0; i < (size_t) dim; ++i)
-					for (size_t J = 0; J < (size_t) dim; ++J)
-						eps[i][J] = 0.5 * (GradU[i][J] + GradU[J][i]);
-
-				TensContract4(sigma, m_ElastTensorFunct, eps);
+				//DisplacementGradient<DimFEGeometry<dim> >(GradU, geo, locU, *it);
+				m_spMatLaw->template DisplacementGradient<DimFEGeometry<dim> >(GradU, *it, geo, locU);
+				m_spMatLaw->stressTensor(sigma, *it, GradU);
 
 				UG_LOG("At " << geo.global_ip(*it) << ": \n");
 				UG_LOG("sigma_yy: " << sigma[1][1] << "\n");
 				UG_LOG("sigma: " << sigma << "\n");
-
 			}
 		}
 
@@ -1028,8 +932,8 @@ template <typename TDomain>
 SmallStrainMechanicsElemDisc<TDomain>::
 SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 			IElemDisc<TDomain> (functions, subsets),
-			m_bUsePlasticity(false), m_hardening(0),
-			m_tangentAccur(1e-08), m_stressEV(false), m_normalStress(false),
+			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_bAddMassJac(false),
+			m_stressEV(false), m_normalStress(false),
 			m_bIP_values_written(false)
 {
 	//	check number of functions
@@ -1047,15 +951,11 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 	m_bQuadOrderUserDef = false;
 	m_quadOrder = -1;
 
-	//	TODO: call IMatLaw:init() here!
-	//	set defaults for material constants
-	matConsts.mu = 0.0; matConsts.kappa = 0.0; matConsts.K_0 = 0.0;
-	matConsts.K_inf = 0.0; matConsts.Hard = 0.0; matConsts.omega = 0.0;
-
-	m_MaxHardIter = 0; m_HardAccuracy = 0.0;
-
 	//	update assemble functions
 	set_assemble_funcs();
+
+	// TODO: check, if OutWriter is set (by means of a bool var)
+	// if not set m_spOutWriter to a default instance of IMechOutputWriter!
 }
 
 
@@ -1063,7 +963,10 @@ template <typename TDomain>
 SmallStrainMechanicsElemDisc<TDomain>::
 ~SmallStrainMechanicsElemDisc()
 {
-	clear_attachments();
+	SmartPtr<TDomain> dom = this->domain();
+	typename TDomain::grid_type& grid = *(dom->grid());
+
+	m_spMatLaw->clear_attachments(grid);
 }
 
 
@@ -1255,13 +1158,6 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 
 	this->set_fsh_timestep_elem_fct(id,
 			&T::template fsh_timestep_elem<TElem, TFEGeom>);
-			
-	/*this->set_ass_JA_elem_fct(id, &T::template ass_JA_elem<TElem, TGeomProvider>);
-	this->set_ass_JM_elem_fct(id, &T::template ass_JM_elem<TElem, TGeomProvider>);
-	this->set_ass_dA_elem_fct(id, &T::template ass_dA_elem<TElem, TGeomProvider>);
-	this->set_ass_dM_elem_fct(id, &T::template ass_dM_elem<TElem, TGeomProvider>);
-	this->set_ass_rhs_elem_fct(id, &T::template ass_rhs_elem<TElem, TGeomProvider>);
-*/
 
 	//	set computation of linearized defect w.r.t velocity
 	m_imVolForce.set_fct(id, this, &T::template lin_def_volume_forces<TElem, TFEGeom>);
@@ -1270,7 +1166,6 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 	//	exports
 //	m_exValue->	  template set_fct<T,refDim>(id, this, &T::template ex_value_fe<TElem, TGeomProvider>);
 //	m_exGrad->    template set_fct<T,refDim>(id, this, &T::template ex_grad_fe<TElem, TGeomProvider>);
-
 
 }
 

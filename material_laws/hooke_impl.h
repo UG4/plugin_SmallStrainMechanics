@@ -1,42 +1,56 @@
 /*
- * hooke_law_impl.h
+ * hooke_impl.h
  *
  *  Created on: 03.02.2014
  *      Author: raphaelprohl
  */
 
-#ifndef HOOKE_LAW_IMPL_H_
-#define HOOKE_LAW_IMPL_H_
+#ifndef HOOKE_IMPL_H_
+#define HOOKE_IMPL_H_
 
 //#include "common/util/string_table_stream.h"
 
-#include "hooke_law.h"
+#include "hooke.h"
+
+#define PROFILE_HOOKE
+#ifdef PROFILE_HOOKE
+	#define HOOKE_PROFILE_FUNC()		PROFILE_FUNC_GROUP("Hooke")
+	#define HOOKE_PROFILE_BEGIN(name)	PROFILE_BEGIN_GROUP(name, "Hooke")
+	#define HOOKE_PROFILE_END()		PROFILE_END()
+#else
+	#define HOOKE_PROFILE_FUNC()
+	#define HOOKE_PROFILE_BEGIN(name)
+	#define HOOKE_PROFILE_END()
+#endif
 
 namespace ug{
 namespace SmallStrainMechanics{
 
-template<int dim>
+template <typename TDomain>
 void
-HookeLaw<dim>::
+HookeLaw<TDomain>::
 init()
 {
-	matConsts.mu = 0.0; matConsts.kappa = 0.0;
+	//	check, if ElasticityTensor is set
+	if (m_spElastTensorFunct.invalid())
+		UG_THROW("No elasticity tensor set in HookeLaw::init()!");
+
+	base_type::m_bInit = true;
 }
 
-template<int dim>
+template <typename TDomain>
 void
-HookeLaw<dim>::
-stressTensor(MathMatrix<dim,dim>& stressTens, const LocalVector& u, const MathMatrix<dim, dim>& GradU,
-		const size_t ip, GeometricObject* elem)
+HookeLaw<TDomain>::
+stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
+		const MathMatrix<dim, dim>& GradU)
 {
-	//if (m_spElastTensorFunct.invalid)
-	//	UG_THROW("No elasticity tensor set in HookeLaw::stressTensor!")
+	HOOKE_PROFILE_BEGIN(HookeLaw_stressTensor);
 
 	//	get linearized strain tensor (eps) at ip
 	MathMatrix<dim, dim> strainTens;
 	strainTensor(strainTens, GradU);
 
-	//TensContract4(sigma, m_ElastTensorFunct, eps);
+	//TensContract4(sigma, elastTensorFunct, eps);
 
 	//	TODO: replace this with general implementation of TensContractMat
 	for(size_t i = 0; i < (size_t) dim; ++i){
@@ -47,30 +61,27 @@ stressTensor(MathMatrix<dim,dim>& stressTens, const LocalVector& u, const MathMa
 			for(size_t k = 0; k < (size_t) dim; ++k){
 				for(size_t l = 0; l < (size_t) dim; ++l)
 				{
-					stressTens[i][j] += m_ElastTensorFunct[i][j][k][l] * strainTens[k][l];
+					stressTens[i][j] += (*m_spElastTensorFunct)[i][j][k][l] * strainTens[k][l];
 				}
 			}
 		}
 	}
 }
 
-template<int dim>
-void
-HookeLaw<dim>::
-elasticityTensor(MathTensor4<dim,dim,dim,dim>& elastTens, const LocalVector& u,
-		const size_t ip, GeometricObject* elem)
+template <typename TDomain>
+inline
+SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
+HookeLaw<TDomain>::
+elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU)
 {
-	//if (m_spElastTensorFunct.invalid)
-	//	UG_THROW("No elasticity tensor set in HookeLaw::elasticityTensor!")
-
-	//elastTens = m_ElastTensorFunct;
-	return;
+	HOOKE_PROFILE_BEGIN(HookeLaw_elasticityTensor);
+	return m_spElastTensorFunct;
 }
 
-template<int dim>
+template <typename TDomain>
 inline
 void
-HookeLaw<dim>::
+HookeLaw<TDomain>::
 strainTensor(MathMatrix<dim,dim>& strainTens, const MathMatrix<dim, dim>& GradU)
 {
 	for(size_t i = 0; i < (size_t) dim; ++i)
@@ -78,9 +89,9 @@ strainTensor(MathMatrix<dim,dim>& strainTens, const MathMatrix<dim, dim>& GradU)
 			strainTens[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
 }
 
-template<int dim>
+template <typename TDomain>
 void
-HookeLaw<dim>::
+HookeLaw<TDomain>::
 set_elasticity_tensor_orthotropic(
 const number C11, const number C12, const number C13,
 		const number C22, const number C23,
@@ -91,13 +102,15 @@ const number C11, const number C12, const number C13,
 {
 	UG_ASSERT( dim==3, "Orthotrope Tensor only for 3 dimensions" );
 
+	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
+
 	//  setze alle wWerte auf 0
 	for (size_t i = 0; i < (size_t) dim; ++i){
 		for (size_t j = 0; j < (size_t) dim; ++j){
 			for (size_t k = 0; k < (size_t) dim; ++k){
 				for (size_t l = 0; l < (size_t) dim; ++l)
 				{
-					m_ElastTensorFunct[i][j][k][l] = 0.0;
+					elastTensorFunct[i][j][k][l] = 0.0;
 				} //end (l)
 			} //end (k)
 		} //end (j)
@@ -105,36 +118,40 @@ const number C11, const number C12, const number C13,
 
 	// Tensor mit Werte fuellen
 	//                 i  j  k  l
-	m_ElastTensorFunct[0][0][0][0] = C11;
+	elastTensorFunct[0][0][0][0] = C11;
 
-	m_ElastTensorFunct[0][0][1][1] = C12;
-	m_ElastTensorFunct[1][1][0][0] = C12; // = C21
+	elastTensorFunct[0][0][1][1] = C12;
+	elastTensorFunct[1][1][0][0] = C12; // = C21
 
-	m_ElastTensorFunct[0][0][2][2] = C13;
-	m_ElastTensorFunct[2][2][0][0] = C13; // = C31
+	elastTensorFunct[0][0][2][2] = C13;
+	elastTensorFunct[2][2][0][0] = C13; // = C31
 
-	m_ElastTensorFunct[1][1][1][1] = C22;
+	elastTensorFunct[1][1][1][1] = C22;
 
-	m_ElastTensorFunct[1][1][2][2] = C23;
-	m_ElastTensorFunct[2][2][1][1] = C23; // = C32
+	elastTensorFunct[1][1][2][2] = C23;
+	elastTensorFunct[2][2][1][1] = C23; // = C32
 
-	m_ElastTensorFunct[2][2][2][2] = C33;
+	elastTensorFunct[2][2][2][2] = C33;
 
-	m_ElastTensorFunct[1][2][1][2] = C44;
-	m_ElastTensorFunct[1][2][2][1] = C44;
+	elastTensorFunct[1][2][1][2] = C44;
+	elastTensorFunct[1][2][2][1] = C44;
 
-	m_ElastTensorFunct[2][1][1][2] = C44;
-	m_ElastTensorFunct[2][1][2][1] = C44;
+	elastTensorFunct[2][1][1][2] = C44;
+	elastTensorFunct[2][1][2][1] = C44;
 
-	m_ElastTensorFunct[2][0][2][0] = C55;
-	m_ElastTensorFunct[0][2][2][0] = C55;
-	m_ElastTensorFunct[2][0][0][2] = C55;
-	m_ElastTensorFunct[0][2][0][2] = C55;
+	elastTensorFunct[2][0][2][0] = C55;
+	elastTensorFunct[0][2][2][0] = C55;
+	elastTensorFunct[2][0][0][2] = C55;
+	elastTensorFunct[0][2][0][2] = C55;
 
-	m_ElastTensorFunct[0][1][0][1] = C66;
-	m_ElastTensorFunct[1][0][0][1] = C66;
-	m_ElastTensorFunct[0][1][1][0] = C66;
-	m_ElastTensorFunct[1][0][1][0] = C66;
+	elastTensorFunct[0][1][0][1] = C66;
+	elastTensorFunct[1][0][0][1] = C66;
+	elastTensorFunct[0][1][1][0] = C66;
+	elastTensorFunct[1][0][1][0] = C66;
+
+	//	remembering the elasticity tensor
+	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
+	m_spElastTensorFunct = spElastTens;
 
 	DenseMatrix<FixedArray2<double, 3, 3> > mat;
 	mat(0,0) = C11; mat(0,1) = C12; mat(0,2) = C13;
@@ -181,28 +198,26 @@ const number C11, const number C12, const number C13,
 }
 
 
-template<int dim>
+template <typename TDomain>
 void
-HookeLaw<dim>::
+HookeLaw<TDomain>::
 set_hooke_elasticity_tensor_E_nu(const number E, const number nu)
 {
 	number lambda = (E*nu) / ((1+nu)*(1-2*nu));
 	number mu = E/(2*(1+nu));
 	set_hooke_elasticity_tensor(lambda, mu);
-
 }
 
-template<int dim>
+template <typename TDomain>
 void
-HookeLaw<dim>::
+HookeLaw<TDomain>::
 set_hooke_elasticity_tensor(const number lambda, const number mu)
 {
 	//	sets the 'Hooke'-elasticity tensor for isotropic materials
 	//	in 2D this tensor formulation corresponds to the
 	//	plane strain assumption for Hookes`s law
 
-	matConsts.mu = mu;
-	matConsts.kappa = lambda + 2.0/3.0 * mu;
+	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
 
 	//  filling the constant elasticity tensor
 	for (size_t i = 0; i < (size_t) dim; ++i){
@@ -210,39 +225,43 @@ set_hooke_elasticity_tensor(const number lambda, const number mu)
 			for (size_t k = 0; k < (size_t) dim; ++k){
 				for (size_t l = 0; l < (size_t) dim; ++l)
 				{
-					m_ElastTensorFunct[i][j][k][l] = 0.0;
+					elastTensorFunct[i][j][k][l] = 0.0;
 
 					if ((i == j) && (k == l)) {
-						m_ElastTensorFunct[i][j][k][l] += lambda;
+						elastTensorFunct[i][j][k][l] += lambda;
 					}
 
 					if ((i == k) && (j == l)) {
-						m_ElastTensorFunct[i][j][k][l] +=  mu;
+						elastTensorFunct[i][j][k][l] +=  mu;
 					}
 
 					if ((i == l) && (j == k)) {
-						m_ElastTensorFunct[i][j][k][l] +=  mu;
+						elastTensorFunct[i][j][k][l] +=  mu;
 					}
 				} //end (l)
 			} //end (k)
 		} //end (j)
 	} //end (i)
 
+	//	remembering the elasticity tensor
+	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
+	m_spElastTensorFunct = spElastTens;
+
 	/* temporarily uncommenting due to registry-error of StringTableStream
 		will be re-included, soon!
 
 	number E = mu * (3.0 * lambda + 2.0 * mu)/(lambda + mu);
 	number v = 0.5 * lambda/(lambda + mu);
-	number K = (3*lambda + 2*mu)/2;
+	number kappa = lambda + 2.0/3.0 * mu;
 
 	std::stringstream ss;
 	ss << "Hooke Elasticity Tensor: \n";
-	ss << "  Lame constant lambda: " << lambda << "\n";
-	ss << "  Lame constant mue (sometimes 'G', shear modulus): " << mu << "\n";
+	ss << "  Lame`s first constant lambda: " << lambda << "\n";
+	ss << "  Lame`s second constant mue (sometimes 'G', shear modulus) (Schubmodul): " << mu << "\n";
 	ss << " This setting equals: \n";
-	ss << "  young modulus E: " << E << "\n";
-	ss << "  poisson ratio v: " << v << "\n";
-	ss << "  bulk modulus (Kompressionsmodul) " << K << "\n";
+	ss << "  young modulus (Elastizitaetsmodul): " << E << "\n";
+	ss << "  poisson ratio (Querkontraktionszahl) v: " << v << "\n";
+	ss << "  bulk modulus (Kompressionsmodul): " << kappa << "\n";
 	ss << "  Elasticity Tensor = " << m_ElastTensorFunct << "\n";
 	m_materialConfiguration = ss.str();
 	UG_LOG("\n" << m_materialConfiguration << "\n");*/
@@ -251,4 +270,4 @@ set_hooke_elasticity_tensor(const number lambda, const number mu)
 }//	end of namespace SmallStrainMechanics
 }//	end of namespace ug
 
-#endif /* HOOKE_LAW_IMPL_H_ */
+#endif /* HOOKE_IMPL_H_ */

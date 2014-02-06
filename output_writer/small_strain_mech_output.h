@@ -8,6 +8,7 @@
 #ifndef SMALL_STRAIN_MECH_OUTPUT_H_
 #define SMALL_STRAIN_MECH_OUTPUT_H_
 
+#include "mech_output_writer.h"
 
 namespace ug{
 namespace SmallStrainMechanics{
@@ -16,7 +17,8 @@ namespace SmallStrainMechanics{
 /// \{
 
 template <typename TDomain, typename TGridFunction>
-class SmallStrainMechOutput
+class SmallStrainMechOutput:
+	public IMechOutputWriter
 {
 	public:
 	///	constructor

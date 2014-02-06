@@ -13,12 +13,12 @@
 namespace ug{
 namespace SmallStrainMechanics{
 
-template<int dim>
+template<typename TDomain>
 template<typename TFEGeom>
 void
-IMaterialLaw<dim>::
-DisplacementGradient(MathMatrix<dim, dim>& GradU,
-		const TFEGeom& geo, const LocalVector& u, const size_t ip)
+IMaterialLaw<TDomain>::
+DisplacementGradient(MathMatrix<dim, dim>& GradU, const size_t ip,
+		const TFEGeom& geo, const LocalVector& u)
 {
 	//	loop shape-functions at one integration point ip in order
 	//	to compute local_grad(ip,i): \frac{\partial N_i}{\eps_ip}

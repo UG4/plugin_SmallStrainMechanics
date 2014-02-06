@@ -81,12 +81,16 @@ void SmallStrainMechanicsElemDisc<TDomain>::contact_forces_elem_ips_avg(
 	number normOfNormal = VecLength(normal);
 	VecScale(normalizedNormal, normal, 1.0/normOfNormal);
 
-	MathMatrix<dim, dim> GradU, eps, sigma;
+	MathMatrix<dim, dim> GradU, sigma;
 	for(size_t ip = 0; ip < geo.num_ip(); ++ip) // loop ip
 	{
 		//	get displacementGradient (GradU), linearized strain tensor (eps)
 		//	and Cauchy stress tensor sigma at ip
-		for (size_t i = 0; i < (size_t) dim; ++i){
+
+		m_spMatLaw->template DisplacementGradient<sideGeo>(GradU, ip, geo, locU);
+		m_spMatLaw->stressTensor(sigma, ip, GradU);
+
+		/*for (size_t i = 0; i < (size_t) dim; ++i){
 			for (size_t J = 0; J < (size_t) dim; ++J)
 			{
 				GradU[i][J] = 0.0;
@@ -99,7 +103,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::contact_forces_elem_ips_avg(
 			for (size_t J = 0; J < (size_t) dim; ++J)
 				eps[i][J] = 0.5 * (GradU[i][J] + GradU[J][i]);
 
-		TensContract4(sigma, m_ElastTensorFunct, eps);
+		TensContract4(sigma, m_ElastTensorFunct, eps);*/
 
 		number sigma_n = 0.0;
 		for (size_t i = 0; i < (size_t) dim; ++i)
@@ -198,7 +202,8 @@ void SmallStrainMechanicsElemDisc<TDomain>::contact_forces_elem_midpoint(
 	MathMatrix<dim, dim> GradU, eps, sigma;
 	GradU = 0.0;
 
-	for(size_t sh = 0; sh < numSH; ++sh)
+	sigma = 0.0;
+	/*for(size_t sh = 0; sh < numSH; ++sh)
 	{
 	//	get global Gradient
 		MatVecMult(vGlobalGrad[sh], JTInv, vLocalGrad[sh]);
@@ -213,7 +218,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::contact_forces_elem_midpoint(
 			eps[fct][i] = 0.5 * (GradU[fct][i] + GradU[i][fct]);
 
 	//	get Cauchy stress tensor 'sigma'
-	TensContract4(sigma, m_ElastTensorFunct, eps);
+	TensContract4(sigma, m_ElastTensorFunct, eps);*/
 
 	//	compute normal component -sigma_n
 	number sigma_n = 0.0;

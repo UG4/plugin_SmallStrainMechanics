@@ -11,31 +11,39 @@
 namespace ug{
 namespace SmallStrainMechanics{
 
-template <int dim>
+//	NOTE: TDomain is necessary here, due to the attached ElemData, only!
+//	-> if an additional interface for materialLaws with internal Vars will be implemented
+//	remove TDomain!
+template <typename TDomain>
 class IMaterialLaw
 {
 	public:
+	///	World dimension
+		static const int dim = TDomain::dim;
+
+	///	base element type of associated domain
+		typedef typename domain_traits<TDomain::dim>::geometric_base_object TBaseElem;
+
+	public:
 	///	constructor
-		IMaterialLaw(){}
+		IMaterialLaw(): m_bInit(false){}
 
 	///	destructor
 		virtual ~IMaterialLaw(){};
 
-	protected:
+	public:
 		///////////////////////////////////////
 		//	methods for common material laws
 		///////////////////////////////////////
 		virtual void init() = 0;
 
-		//	computing a stress tensor at an integration point ip
-		//	of element 'elem'
-		virtual void stressTensor(MathMatrix<dim,dim>& stressTens, const LocalVector& u,
-				const MathMatrix<dim,dim>& GradU, const size_t ip, GeometricObject* elem) = 0;
+		//	computes a stress tensor at an integration point ip
+		virtual void stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
+				const MathMatrix<dim,dim>& GradU) = 0;
 
-		//	computing the elasticity tensor at an integration point ip
-		//	of element 'elem'
-		virtual void elasticityTensor(MathTensor4<dim,dim,dim,dim>& elastTens,
-				const LocalVector& u, const size_t ip, GeometricObject* elem) = 0;
+		//	computes the elasticity tensor at an integration point ip
+		virtual SmartPtr<MathTensor4<dim,dim,dim,dim> >
+			elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU) = 0;
 
 		virtual void print(){};
 
@@ -43,13 +51,22 @@ class IMaterialLaw
 		//	methods for material laws
 		//	with internal variables
 		///////////////////////////////////////
-		virtual void elem_data(GeometricObject* elem){};
-		virtual void update_elem_data(GeometricObject* elem){};
+		virtual void attach_internal_vars(typename TDomain::grid_type& grid){};
+		virtual void clear_attachments(typename TDomain::grid_type& grid){};
+
+		virtual void init_internal_vars(TBaseElem* elem, const size_t numIP){};
+		virtual void internal_vars(TBaseElem* elem){};
+		virtual void update_internal_vars(const size_t ip, const MathMatrix<dim, dim>& GradU){};
+
+	public:
+		inline bool is_initialized(){return m_bInit;}
+
+		template <typename TFEGeom>
+		void DisplacementGradient(MathMatrix<dim, dim>& GradU, const size_t ip,
+				const TFEGeom& geo, const LocalVector& u);
 
 	protected:
-		template <typename TFEGeom>
-		void DisplacementGradient(MathMatrix<dim, dim>& GradU, const TFEGeom& geo,
-				const LocalVector& u, const size_t ip);
+		bool m_bInit;
 };
 
 }//	end of namespace SmallStrainMechanics
