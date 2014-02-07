@@ -911,8 +911,8 @@ template <typename TDomain>
 SmallStrainMechanicsElemDisc<TDomain>::
 ~SmallStrainMechanicsElemDisc()
 {
-	if(m_bOutWriter)
-		m_spOutWriter->postprocess();
+	//if(m_bOutWriter)
+	//	m_spOutWriter->postprocess();
 
 	SmartPtr<TDomain> dom = this->domain();
 	typename TDomain::grid_type& grid = *(dom->grid());
