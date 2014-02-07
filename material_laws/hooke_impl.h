@@ -50,8 +50,6 @@ stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
 	MathMatrix<dim, dim> strainTens;
 	strainTensor(strainTens, GradU);
 
-	//TensContract4(sigma, elastTensorFunct, eps);
-
 	//	TODO: replace this with general implementation of TensContractMat
 	for(size_t i = 0; i < (size_t) dim; ++i){
 		for(size_t j = 0; j < (size_t) dim; ++j)
@@ -61,7 +59,8 @@ stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
 			for(size_t k = 0; k < (size_t) dim; ++k){
 				for(size_t l = 0; l < (size_t) dim; ++l)
 				{
-					stressTens[i][j] += (*m_spElastTensorFunct)[i][j][k][l] * strainTens[k][l];
+					stressTens[i][j] += (*m_spElastTensorFunct)[i][j][k][l]
+					                     * strainTens[k][l];
 				}
 			}
 		}

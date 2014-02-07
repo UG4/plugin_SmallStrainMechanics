@@ -60,9 +60,9 @@ class PrandtlReuss
 		void set_residual_flow_stress(const number resFlowStress)
 		{matConsts.K_inf = resFlowStress;}
 		void set_hardening_modulus(const number hardModulus)
-		{matConsts.Hard = hardModulus;}
+		{matConsts.Hard = hardModulus; m_bHardModulus = true;}
 		void set_hardening_exponent(const number hardExponent)
-		{matConsts.omega = hardExponent;}
+		{matConsts.omega = hardExponent; m_bHardExp = true;}
 		void set_hardening_behavior(int hard);
 
 	///	set precision of numerical approximation of the tangent
@@ -95,7 +95,7 @@ class PrandtlReuss
 				const MathMatrix<dim, dim>& GradU);
 
 	///	computes the elasticity tensor; commonly denoted by C
-		inline SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
+		SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
 			elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU);
 
 
@@ -217,6 +217,10 @@ class PrandtlReuss
 
 	/// tangent accuracy
 		number m_tangentAccur;
+
+	///	flags indicating if hardening variables are set
+		bool m_bHardModulus;
+		bool m_bHardExp;
 };
 
 }//	end of namespace SmallStrainMechanics

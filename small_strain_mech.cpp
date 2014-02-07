@@ -167,16 +167,6 @@ init_state_variables(const size_t order)
 	m_outFile = fopen("sig_eigen.dat", "w");
 #endif
 
-	DimFEGeometry<dim> geo;
-	SmartPtr<TDomain> dom = this->domain();
-	typename TDomain::grid_type& grid = *(dom->grid());
-
-	//  Attachment of CP-Matrix and hardening value to an element (IP-wise):
-	//	We loop all elements in grid/multigrid
-
-	typedef typename TDomain::grid_type::template traits<TBaseElem>::iterator
-			ElemIter;
-
 	//	TODO: is this necessary here???? Or do I only need num_ip?
 	m_order = order;
 	m_lfeID = LFEID(LFEID::LAGRANGE, dim, order);
@@ -192,12 +182,18 @@ init_state_variables(const size_t order)
 
 	//	clears and then attaches the attachments for the internal variables
 	//	to the grid
+	SmartPtr<TDomain> dom = this->domain();
+	typename TDomain::grid_type& grid = *(dom->grid());
+
 	m_spMatLaw->clear_attachments(grid);
 	m_spMatLaw->attach_internal_vars(grid);
 
 	//	here the attachment is attached to the whole grid/multigrid
-	 // 	and it remains attached until the SmallStrainMechanicsElemDisc-class
-	 // 	destructor!
+	// 	and it remains attached until the
+	//	destructor of SmallStrainMechanicsElemDisc!
+	DimFEGeometry<dim> geo;
+	typedef typename TDomain::grid_type::template traits<TBaseElem>::iterator
+			ElemIter;
 	for (ElemIter iter = grid.template begin<TBaseElem> (); iter
 			!= grid.template end<TBaseElem> (); iter++)
 	{

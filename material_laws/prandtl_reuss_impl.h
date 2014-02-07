@@ -27,7 +27,8 @@ namespace SmallStrainMechanics{
 template <typename TDomain>
 PrandtlReuss<TDomain>::PrandtlReuss():
 	IMaterialLaw<TDomain>(),
-	m_MaxHardIter(0.0), m_HardAccuracy(0.0), m_tangentAccur(1e-08)
+	m_MaxHardIter(0.0), m_HardAccuracy(0.0), m_tangentAccur(1e-08),
+	m_bHardModulus(false), m_bHardExp(false)
 {
 	// set default material constants
 	matConsts.mu = 0.0; matConsts.kappa = 0.0;
@@ -47,27 +48,39 @@ set_hardening_behavior(int hard)
 
 		//	linear hardening
 		case 1: m_hardening = 1; break;
-		//matConsts.Hard = 129.24;
 
 		//	exponential hardening
-		case 2: m_hardening = 2; break;
-				/*TODO: matConsts.Hard = 129.24;
-				matConsts.omega = 16.93; m_MaxHardIter = 100;
-				m_HardAccuracy = 1e-10; */
+		case 2: m_hardening = 2;
+				m_MaxHardIter = 100;
+				m_HardAccuracy = 1e-10; break;
 
 		default: UG_THROW(hard << " is not a valid hardening behavior! "
 				"Choose 0 (perfect), 1 (linear) or 2 (exponential) ! \n");
 	}
-
-	/*matConsts.K_0 = 450.00; //= 450e6 Pa
-	matConsts.K_inf = 715.00;*/
 }
 
 template <typename TDomain>
 void
 PrandtlReuss<TDomain>::
 init()
-{}
+{
+	//	check, if all parameter for a hardening behavior are set
+
+	if (m_hardening == 1){ // linear hardening law
+		if (!m_bHardModulus)
+			UG_THROW("No hardening modulus set! This is necessary for a "
+					"linear hardening law in PrandtlReuss::init() \n");
+	}
+
+	if (m_hardening == 2){ // exponential hardening law
+		if (!m_bHardModulus)
+			UG_THROW("No hardening modulus set! This is necessary for an "
+					"exponential hardening law in PrandtlReuss::init() \n");
+		if (!m_bHardExp)
+			UG_THROW("No hardening exponent set! This is necessary for an "
+					"exponential hardening law in PrandtlReuss::init() \n");
+	}
+}
 
 template <typename TDomain>
 void
@@ -75,8 +88,6 @@ PrandtlReuss<TDomain>::
 StressTensor(MathMatrix<dim,dim>& stressTens, const MathMatrix<dim, dim>& GradU,
 		const MathMatrix<dim, dim>& strain_p_old_t, const number alpha)
 {
-	//UG_LOG("StressTensor call \n");
-
 	MathMatrix<dim, dim> strial, normal, strain, strain_p_new;
 	number gamma;
 
@@ -90,10 +101,6 @@ PrandtlReuss<TDomain>::
 stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
 		const MathMatrix<dim, dim>& GradU)
 {
-	/*UG_LOG("stressTensor call \n");
-	UG_LOG("kappa: " << matConsts.kappa << ", mu: " << matConsts.mu << "\n");
-	if (dim !=3)
-		UG_LOG("dim: "<< dim << "\n");*/
 	PRANDTL_REUSS_PROFILE_BEGIN(PrandtlReuss_stressTensor);
 
 	//	get internal variables
@@ -105,12 +112,10 @@ stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
 
 
 template <typename TDomain>
-inline
 SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
 PrandtlReuss<TDomain>::
 elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU)
 {
-	//UG_LOG("elasticityTensor call \n");
 	PRANDTL_REUSS_PROFILE_BEGIN(PrandtlReuss_elasticityTensor);
 
 	//	get internal variables
@@ -154,8 +159,6 @@ void
 PrandtlReuss<TDomain>::
 init_internal_vars(TBaseElem* elem, const size_t numIP)
 {
-	//UG_LOG("init_internal_vars\n");
-
 	m_aaElemData[elem].internalVars.resize(numIP);
 
 	// 	set plastic strain (eps_p) and hardening variable (alpha)
@@ -177,7 +180,6 @@ PrandtlReuss<TDomain>::
 internal_vars(TBaseElem* elem)
 {
 	m_pElemData = &m_aaElemData[elem];
-	//UG_LOG("internal_vars\n");
 }
 
 template <typename TDomain>
@@ -192,8 +194,6 @@ update_internal_vars(const size_t ip, const MathMatrix<dim, dim>& GradU)
 
 	Update_internal_vars(strain_p_old_t, alpha, GradU, strain_p_old_t);
 	m_pElemData->internalVars[ip].alpha = alpha;
-
-	//UG_LOG("update_internal_vars\n");
 }
 
 template <typename TDomain>
@@ -204,8 +204,6 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 		const MathMatrix<dim, dim>& GradU,
 		const MathMatrix<dim, dim>& strain_p_old_t)
 {
-	//UG_LOG("Update_internal_vars\n");
-
 	//	compute linearized strain tensor (eps)
 	MathMatrix<dim, dim> strain;
 	strainTensor(strain, GradU);
@@ -231,7 +229,7 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 
 	UG_ASSERT(strialnorm > 0.0, "norm of strial needs to be > 0.0");
 
-	/*	computation of gamma (plastic corrector/multiplicator) */
+	//	computation of gamma (plastic corrector/multiplicator)
 	switch (m_hardening)
 	{
 		case 0: gamma = PerfectPlasticity(flowcondtrial); break;
@@ -275,8 +273,6 @@ Flowrule(MathMatrix<dim, dim>& strain_p_new, MathMatrix<dim, dim>& strain, numbe
 		MathMatrix<dim, dim>& strial, MathMatrix<dim, dim>& normal, const MathMatrix<dim, dim>& GradU,
 		const MathMatrix<dim, dim>& strain_p_old_t, const number alpha)
 {
-	//UG_LOG("Flowrule call \n");
-
 	//////////////////////////
 	//  TRIAL ELASTIC STEP
 	//////////////////////////
@@ -306,7 +302,7 @@ Flowrule(MathMatrix<dim, dim>& strain_p_new, MathMatrix<dim, dim>& strain, numbe
 	//////////////////////////////
 
 	if (flowcondtrial <= 0){
-		strain_p_new = strain_p_old_t; gamma = 0.0; normal = 0.0;
+		strain_p_new = strain_p_old_t; gamma = 0.0;
 		return;
 	}
 
@@ -316,8 +312,8 @@ Flowrule(MathMatrix<dim, dim>& strain_p_new, MathMatrix<dim, dim>& strain, numbe
 
 	UG_ASSERT(strialnorm > 0.0, "norm of strial needs to be > 0.0");
 
-	/*	computation of gamma (plastic corrector/multiplicator)
-	 * 	accordingly to Simo/Hughes 98 p.121/122 */
+	//	computation of gamma (plastic corrector/multiplicator)
+	// 	accordingly to Simo/Hughes 98 p.121/122
 	switch (m_hardening)
 	{
 		case 0: gamma = PerfectPlasticity(flowcondtrial); break;
@@ -342,8 +338,6 @@ PrandtlReuss<TDomain>::
 ConstLaw(MathMatrix<dim, dim>& stressTens, const MathMatrix<dim, dim>& strain, const MathMatrix<dim, dim>& strial,
 		const number& gamma, const MathMatrix<dim, dim>& normal)
 {
-	//UG_LOG("ConstLaw call \n");
-
 	//	constitutive law taken from Simo/Hughes 98 'Computational Inelasticity' p. 124
 	number trStrain = Trace(strain);
 
@@ -384,10 +378,7 @@ number
 PrandtlReuss<TDomain>::
 PerfectPlasticity(const number flowcondtrial)
 {
-	//UG_LOG("PerfectPlasticity \n");
-
-	number gamma = flowcondtrial / (2.0 * matConsts.mu);
-	return gamma;
+	return flowcondtrial / (2.0 * matConsts.mu);
 }
 
 template <typename TDomain>
@@ -396,8 +387,7 @@ number
 PrandtlReuss<TDomain>::
 LinearHardening(const number flowcondtrial)
 {
-	number gamma = flowcondtrial / (2.0 * (matConsts.mu + matConsts.Hard/3.0));
-	return gamma;
+	return flowcondtrial / (2.0 * (matConsts.mu + matConsts.Hard/3.0));
 }
 
 template <typename TDomain>
@@ -427,8 +417,6 @@ number
 PrandtlReuss<TDomain>::
 MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev)
 {
-	//UG_LOG("MatDeviatorTrace\n");
-
 	number trace = Trace(mat);
 
 	//	compute the deviatoric part of mat
