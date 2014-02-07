@@ -31,7 +31,7 @@ print_mat_constants(const number lambda, const number mu,
 	UG_LOG( "poisson ratio v: " << v << "\n \n");
 }
 
-template<typename TDomain>
+/*template<typename TDomain>
 number
 SmallStrainMechanicsElemDisc<TDomain>::
 MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev)
@@ -47,7 +47,7 @@ MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev)
 	}
 
 	return trace;
-}
+}*/
 
 // end group small_strain_mechanics
 /// \}

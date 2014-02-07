@@ -95,8 +95,10 @@ class SmallStrainMechanicsElemDisc
 		{ m_spMatLaw = spMatLaw;}
 
 	///	set an output writer
-		void set_output_writer(SmartPtr<IMechOutputWriter> spOutWriter)
-		{ m_spOutWriter = spOutWriter;}
+		void set_output_writer(SmartPtr<MechOutputWriter<TDomain> > spOutWriter){
+			m_spOutWriter = spOutWriter;
+			m_bOutWriter = true;
+		}
 
 	///	set volume forces
 		void set_volume_forces(SmartPtr<CplUserData<MathVector<dim>, dim> > user);
@@ -145,7 +147,7 @@ class SmallStrainMechanicsElemDisc
 		void init_state_variables(const size_t order);
 
 	///	get stress eigenvalues at coord
-		void stress_eigenvalues_at(const number CoordX, const number CoordY, const number CoordZ)
+	/*	void stress_eigenvalues_at(const number CoordX, const number CoordY, const number CoordZ)
 		{
 			m_stressEV = true;
 			m_eigCoordX = CoordX; m_eigCoordY = CoordY; m_eigCoordZ = CoordZ;
@@ -164,7 +166,7 @@ class SmallStrainMechanicsElemDisc
 
 	///	closes the gnuplot-file
 		void close_gnuplot_file();
-
+*/
 
 	/// computing contact forces elementwise by averaging over all integration points
 		template<typename TElem>
@@ -286,7 +288,7 @@ class SmallStrainMechanicsElemDisc
 				const number mu, const number E, const number v);
 
 	///	get trace and deviatoric part of a matrix
-		number MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev);
+	//	number MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev);
 
 	private:
 		///	sets the requested assembling routines
@@ -304,8 +306,9 @@ class SmallStrainMechanicsElemDisc
 		SmartPtr<MathTensor4<dim,dim,dim,dim> > m_spElastTensor;
 
 	///	output writer
-		SmartPtr<IMechOutputWriter> m_spOutWriter;
-
+		SmartPtr<MechOutputWriter<TDomain> > m_spOutWriter;
+		bool m_bOutWriter;
+		bool m_bMatLawPassedToOutWriter;
 
 	///	current order of disc scheme
 		int m_order;
@@ -327,7 +330,7 @@ class SmallStrainMechanicsElemDisc
 		bool m_bAddMassJac;
 
 	///	compute stress-eigenvalues / normalStress at specific corner
-		bool m_stressEV;
+		/*bool m_stressEV;
 		bool m_normalStress;
 
 	/// coords where to get stress-eigenvales/normalStress
@@ -336,13 +339,13 @@ class SmallStrainMechanicsElemDisc
 
 	///	checks if ip values are already written, e.g. in order to write stress-eigenvalues
 		bool m_bIP_values_written;
-
+*/
 	///	maximal value describing the factor used to project back to the elastic domain
 	///	(in case of plastic behavior)
 		number m_max_gamma;
 
 	///	output-file
-		FILE *m_outFile;
+	//	FILE *m_outFile;
 
 		std::string m_materialConfiguration;
 };

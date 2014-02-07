@@ -12,7 +12,7 @@
 
 #include "small_strain_mech.h"
 #include "output_writer/mech_output_writer.h"
-#include "output_writer/small_strain_mech_output.h"
+//#include "output_writer/small_strain_mech_output.h"
 #include "contact/contact.h"
 
 #include "material_laws/hooke.h"
@@ -53,20 +53,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 	string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
 	string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
 
-//	typedef
 	typedef GridFunction<TDomain, TAlgebra> function_type;
-
-//	SmallStrainMechanics Output
-	{
-		typedef SmallStrainMechOutput<TDomain, function_type> T;
-		string name = string("SmallStrainMechOutput").append(suffix);
-		reg.add_class_<T>(name, grp)
-			.template add_constructor<void (*)(SmartPtr<SmallStrainMechanicsElemDisc<TDomain> >)>("domain disc")
-			.add_method("normal_stresses_strains", &T::normal_stresses_strains, "", "sigma#epsilon#u",
-					"computes stress tensor sigma, the deviatoric part of sigma and linearized strain tensor epsilon")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "SmallStrainMechOutput", tag);
-	}
 
 //	Contact Disc for SmallStrainMechanics-contact problems
 	{
@@ -78,6 +65,10 @@ static void DomainAlgebra(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "ContactSmallStrainMechanics", tag);
 	}
+
+//	functionality for output
+	reg.add_function("normal_stresses_strains",
+					&normal_stresses_strains<function_type>, grp);
 
 }
 
@@ -106,9 +97,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const char*,const char*)>("Function#Subsets")
 			.add_method("add_material_law", &T::add_material_law, "", "material law")
-			//.add_method("set_elasticity_tensor_orthotropic", &T::set_elasticity_tensor_orthotropic, "", "C11#C12#C13#C22#C23#C33#C44#C55#C66")
-			//.add_method("set_hooke_elasticity_tensor", &T::set_hooke_elasticity_tensor, "", "lambda#mu")
-			//.add_method("set_hooke_elasticity_tensor_E_nu", &T::set_hooke_elasticity_tensor_E_nu, "", "E#nu")
+			.add_method("set_output_writer", &T::set_output_writer, "", "set output writer")
 			.add_method("set_quad_order", &T::set_quad_order, "", "order")
 
 			.add_method("set_volume_forces", static_cast<void (T::*)(SmartPtr<CplUserData<MathVector<dim>, dim> >)>(&T::set_volume_forces),"", "Force field")
@@ -126,12 +115,8 @@ static void Domain(Registry& reg, string grp)
 #endif
 
 			.add_method("add_mass_jacobian", &T::add_mass_jacobian)
-			//.add_method("set_hardening_behavior", &T::set_hardening_behavior)
-			//.add_method("use_approx_tangent", &T::use_approx_tangent)
 			.add_method("init_state_variables", &T::init_state_variables)
-			.add_method("stress_eigenvalues_at", &T::stress_eigenvalues_at)
-			.add_method("normal_stresses_at", &T::normal_stresses_at)
-			.add_method("close_gnuplot_file", &T::close_gnuplot_file)
+			//.add_method("close_gnuplot_file", &T::close_gnuplot_file)
 			.add_method("config_string", &T::config_string)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "SmallStrainMechanics", tag);
@@ -146,7 +131,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "IMaterialLaw", tag);
 	}
 
-	//	Hooke Law for linear Elasticity
+	//	Hooke Law for Linear Elasticity
 	{
 		typedef HookeLaw<TDomain> T;
 		typedef IMaterialLaw<TDomain> TBase;
@@ -189,6 +174,20 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "PrandtlReuss", tag);
 	}
+
+//	Solid Mechanics Output Writer
+   {
+		typedef MechOutputWriter<TDomain> T;
+		string name = string("MechOutputWriter").append(suffix);
+		reg.add_class_<T>(name, grp)
+			.add_constructor()
+			.add_method("stress_eigenvalues_at", &T::stress_eigenvalues_at)
+			.add_method("normal_stresses_at", &T::normal_stresses_at)
+			//.add_method("normal_stresses_strains", &T::normal_stresses_strains)
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "MechOutputWriter", tag);
+   }
+
 }
 
 /**
@@ -207,11 +206,6 @@ static void Dimension(Registry& reg, string grp)
 	string tag = GetDimensionTag<dim>();
 }*/
 
-static void Common(Registry& reg, string grp)
-{
-	reg.add_class_<IMechOutputWriter >("IMechOutputWriter", grp);
-}
-
 }; // end Functionality
 
 // end group small_strain_mechanics
@@ -229,7 +223,6 @@ InitUGPlugin_SmallStrainMechanics(Registry* reg, string grp)
 	typedef SmallStrainMechanics::Functionality Functionality;
 
 	try{
-		RegisterCommon<Functionality>(*reg,grp);
 		//RegisterDimension2d3dDependent<Functionality>(*reg,grp);
 		RegisterDomain2d3dDependent<Functionality>(*reg,grp);
 		RegisterDomain2d3dAlgebraDependent<Functionality>(*reg,grp);

@@ -159,13 +159,13 @@ init_state_variables(const size_t order)
 	//m_spOutWriter->preprocess();
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechInit_state_variables);
 
-#ifdef UG_PARALLEL
+/*#ifdef UG_PARALLEL
 	if (pcl::GetProcRank() == 0){
 		m_outFile = fopen("sig_eigen.dat", "w");
 	}
 #else
 	m_outFile = fopen("sig_eigen.dat", "w");
-#endif
+#endif*/
 
 	//	TODO: is this necessary here???? Or do I only need num_ip?
 	m_order = order;
@@ -214,10 +214,8 @@ prep_timestep_elem(const number time, const LocalVector& u,
 		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	//	call OutputWriter
-	//m_spOutWriter->pre_timestep();
-
-	m_max_gamma = 0.0;
-	m_bIP_values_written = false;
+	if (m_bOutWriter)
+		m_spOutWriter->pre_timestep();
 }
 
 template<typename TDomain>
@@ -234,8 +232,16 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 				"SmallStrainMechanicsElemDisc::prep_elem_loop \n");
 
 	//	TODO: this only needs to be checked once at the beginning!
+	//	-> prepare_setting?!
 	if (!m_spMatLaw->is_initialized())
 		m_spMatLaw->init();
+
+	//	pass the material law to the output writer
+	if ((!m_bMatLawPassedToOutWriter) && m_spOutWriter.valid()){
+		m_spOutWriter->material_law(m_spMatLaw);
+		m_spOutWriter->quad_order(m_quadOrder);
+		m_bMatLawPassedToOutWriter = true;
+	}
 
 	//	request geometry
 	TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
@@ -291,7 +297,6 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
 	MathMatrix<dim, dim> GradU;
-
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
 		//	TODO: think about moving the call of 'DisplacementGradient',
@@ -423,7 +428,6 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
 	MathMatrix<dim, dim> sigma, GradU;
-
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
 		//	compute cauchy-stress tensor sigma at a ip
@@ -467,8 +471,8 @@ add_rhs_elem(LocalVector& d, GeometricObject* elem, const MathVector<dim> vCorne
 	//	request geometry
 	 const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
-	 for(size_t ip = 0; ip < geo.num_ip(); ++ip){ // loop ip
-		 for(size_t a = 0; a < geo.num_sh(); ++a){ // loop shape functions
+	 for(size_t ip = 0; ip < geo.num_ip(); ++ip){ 	// loop ip
+		 for(size_t a = 0; a < geo.num_sh(); ++a){	// loop shape functions
 			 for(size_t i = 0; i < num_fct(); ++i){ // loop component
 				 d(i,a) += m_imVolForce[ip][i] * geo.shape(ip, a) * geo.weight(ip);
 			 }
@@ -549,11 +553,6 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 {
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechFshTimeStepElem);
 
-	SmartPtr<TDomain> dom = this->domain();
-	typedef typename IElemDisc<TDomain>::domain_type::position_accessor_type
-			position_accessor_type;
-	position_accessor_type& aaPos = dom->position_accessor();
-
 	//	request geometry
 	TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
@@ -567,10 +566,15 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 	m_spMatLaw->internal_vars(static_cast<TElem*>(elem));
 
 	//	call OutputWriter
-	//m_spOutWriter->post_timestep(geo, elem, dim);
+	if (m_bOutWriter){
+		SmartPtr<TDomain> dom = this->domain();
+		m_spOutWriter->post_timestep(time, dom, geo, static_cast<TElem*>(elem), u);
+	}
 
-	MathMatrix<dim, dim> GradU;
-
+	/*MathMatrix<dim, dim> GradU;
+	//typedef typename IElemDisc<TDomain>::domain_type::position_accessor_type
+	//		position_accessor_type;
+	//position_accessor_type& aaPos = dom->position_accessor();
 	//	COMPUTE EIGENVALUES OF A STRESSTENSOR AT IP
 	if (m_stressEV)
 	{
@@ -582,27 +586,12 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 		if ((ContainsPoint(static_cast<TElem*>(elem), eval_point, aaPos) == true)
 				&& (m_bIP_values_written == false))
 		{
-			MathMatrix<dim, dim> SYMMSig, Sig;
-			number dist = std::numeric_limits<number>::max();
+			// 	TODO: move next_ips_to_point-call to an instance of
+			//	IMechOutputWriter like SmallStrainMechOutput!
 			vector<size_t> vNextIP;
+			m_spOutWriter->next_ips_to_point(vNextIP, eval_point, geo);
 
-			//	note: stresses are only computed at ip`s
-			//	determine shortest distance from a ip to m_eigCoord
-			for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-			{
-				number dist_ip = VecDistance(geo.global_ip(ip), eval_point);
-				if (dist_ip < dist)
-					dist = dist_ip;
-			}
-
-			//	determine all ip`s with shortest distance to m_eigCoord
-			for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-			{
-				number dist_ip = VecDistance(geo.global_ip(ip), eval_point);
-				if (dist_ip == dist)
-					vNextIP.push_back(ip);
-			}
-
+			MathMatrix<dim, dim> SYMMSig, Sig;
 			for (vector<size_t>::iterator it = vNextIP.begin();
 							it != vNextIP.end(); ++it)
 			{
@@ -650,10 +639,10 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 				m_bIP_values_written = true;
 			} // end vNextIP-iteration
 		} //end(if containsPoint)
-	} //end(if m_stressEV)
+	} //end(if m_stressEV)*/
 
 	//	COMPUTE NORMAL STRESSES OF THE STRESSTENSOR SIGMA AT IP
-	if (m_normalStress)
+	/*if (m_normalStress)
 	{
 		MathVector<dim> eval_point;
 		eval_point[0] = m_normStressCoordX;
@@ -663,27 +652,12 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 		if ((ContainsPoint(static_cast<TElem*>(elem), eval_point, aaPos) == true))
 				//&& (m_bIP_values_written == false))
 		{
-			MathMatrix<dim, dim> Sig;
-			number dist = std::numeric_limits<number>::max();
+			// 	TODO: move next_ips_to_point-call to an instance of
+			//	IMechOutputWriter like SmallStrainMechOutput!
 			vector<size_t> vNextIP;
+			m_spOutWriter->next_ips_to_point(vNextIP, eval_point, geo);
 
-			//	note: stresses are only computed at ip`s
-			//	determine shortest distance from a ip to eval_point
-			for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-			{
-				number dist_ip = VecDistance(geo.global_ip(ip), eval_point);
-				if (dist_ip < dist)
-					dist = dist_ip;
-			}
-
-			//	determine all ip`s with shortest distance to eval_point
-			for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-			{
-				number dist_ip = VecDistance(geo.global_ip(ip), eval_point);
-				if (dist_ip == dist)
-					vNextIP.push_back(ip);
-			}
-
+			MathMatrix<dim, dim> Sig;
 			for (vector<size_t>::iterator it = vNextIP.begin();
 							it != vNextIP.end(); ++it)
 			{
@@ -700,9 +674,10 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 				//m_bIP_values_written = true;
 			} // end vNextIP-iteration
 		} //end(if containsPoint)
-	}
+	}*/
 
 	//	UPDATE PLASTIC STRAINS 'eps_p' AND HARDENING VARIABLE 'alpha'
+	MathMatrix<dim, dim> GradU;
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
 		//  update the internal (plastic) variables strain_p_new and alpha
@@ -712,20 +687,18 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 
 }
 
-template<typename TDomain>
+/*template<typename TDomain>
 void
 SmallStrainMechanicsElemDisc<TDomain>::
 normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 		LocalVector& locEps, TBaseElem* elem, const LocalVector& locU)
 {
-	DimFEGeometry<dim> geo;
 	SmartPtr<TDomain> dom = this->domain();
 
-	//	get all neighbor elems which share a vertex with the given element 'elem'
+//	get all neighbor elems which share a vertex with the given element 'elem'
 	typename TDomain::grid_type& grid = *(dom->grid());
 	vector<TBaseElem*> vNeighborElems;
 	CollectNeighbors(vNeighborElems, elem, grid, NHT_VERTEX_NEIGHBORS);
-
 	typedef typename vector<TBaseElem*>::iterator neighborElemIter;
 
 	typedef typename IElemDisc<TDomain>::domain_type::position_accessor_type
@@ -742,6 +715,7 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 	};
 
 	//	prepare geometry for type and order
+	DimFEGeometry<dim> geo;
    	try{
 		geo.update(elem, &(coCoord[0]), m_lfeID, m_quadOrder);
 	}
@@ -786,6 +760,8 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 
 	for (size_t co = 0; co < numVertices; ++co) // loop corner
 	{
+		//	TODO: is this geometry update necessary here?
+
 		//	update geometry
 		try{
 			geo.update(elem, &(coCoord[0]), m_lfeID, m_quadOrder);
@@ -827,34 +803,17 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 				UG_LOG("u("<< i << "," << co << "): " << locU(i,co) << "\n");
 			}
 			UG_LOG("\n");
-			number dist = std::numeric_limits<number>::max();
+
 			vector<size_t> vNextIP;
-
-			//	note: stresses are only computed at ip`s
-			//	determine shortest distance from a ip to m_eigCoord
-			for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-			{
-				number dist_ip = VecDistance(geo.global_ip(ip), coCoord[co]);
-				if (dist_ip < dist)
-					dist = dist_ip;
-			}
-
-			//	determine all ip`s with shortest distance to m_eigCoord
-			for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-			{
-				number dist_ip = VecDistance(geo.global_ip(ip), coCoord[co]);
-				if (dist_ip == dist)
-					vNextIP.push_back(ip);
-			}
+			m_spOutWriter->next_ips_to_point(vNextIP, coCoord[co], geo);
 
 			MathMatrix<dim, dim> sigma;
-
 			for (vector<size_t>::iterator it = vNextIP.begin();
 							it != vNextIP.end(); ++it)
 			{
-				//	get displacementGradient (GradU) and linearized strain tensor (eps) at ip
-				//DisplacementGradient<DimFEGeometry<dim> >(GradU, geo, locU, *it);
+				//	get displacementGradient (GradU) at ip
 				m_spMatLaw->template DisplacementGradient<DimFEGeometry<dim> >(GradU, *it, geo, locU);
+				//	get the Cauchy Stress Tensor (sigma) at ip
 				m_spMatLaw->stressTensor(sigma, *it, GradU);
 
 				UG_LOG("At " << geo.global_ip(*it) << ": \n");
@@ -882,22 +841,14 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 		}
 
 	};
-}
+}*/
 
 
-template <typename TDomain>
+/*template <typename TDomain>
 void
 SmallStrainMechanicsElemDisc<TDomain>::
 close_gnuplot_file()
-{
-#ifdef UG_PARALLEL
-	if (pcl::GetProcRank() == 0){
-		fclose(m_outFile);
-	}
-#else
-	fclose(m_outFile);
-#endif
-}
+{}*/
 
 template <typename TDomain>
 void
@@ -928,9 +879,10 @@ template <typename TDomain>
 SmallStrainMechanicsElemDisc<TDomain>::
 SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 			IElemDisc<TDomain> (functions, subsets),
-			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_bAddMassJac(false),
-			m_stressEV(false), m_normalStress(false),
-			m_bIP_values_written(false)
+			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_spOutWriter(SPNULL),
+			m_bMatLawPassedToOutWriter(false), m_bAddMassJac(false)
+			//,m_stressEV(false), m_normalStress(false),
+			//m_bIP_values_written(false)
 {
 	//	check number of functions
 	if (this->num_fct() != (size_t) dim)
@@ -959,9 +911,11 @@ template <typename TDomain>
 SmallStrainMechanicsElemDisc<TDomain>::
 ~SmallStrainMechanicsElemDisc()
 {
+	if(m_bOutWriter)
+		m_spOutWriter->postprocess();
+
 	SmartPtr<TDomain> dom = this->domain();
 	typename TDomain::grid_type& grid = *(dom->grid());
-
 	m_spMatLaw->clear_attachments(grid);
 }
 
