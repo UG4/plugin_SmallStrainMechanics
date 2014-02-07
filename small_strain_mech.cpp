@@ -880,7 +880,8 @@ SmallStrainMechanicsElemDisc<TDomain>::
 SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 			IElemDisc<TDomain> (functions, subsets),
 			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_spOutWriter(SPNULL),
-			m_bMatLawPassedToOutWriter(false), m_bAddMassJac(false)
+			m_bMatLawPassedToOutWriter(false), m_bAddMassJac(false),
+			m_bOutWriter(false)
 			//,m_stressEV(false), m_normalStress(false),
 			//m_bIP_values_written(false)
 {
