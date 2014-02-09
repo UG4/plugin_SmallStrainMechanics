@@ -12,7 +12,6 @@
 
 #include "small_strain_mech.h"
 #include "output_writer/mech_output_writer.h"
-//#include "output_writer/small_strain_mech_output.h"
 #include "contact/contact.h"
 
 #include "material_laws/hooke.h"
@@ -96,7 +95,7 @@ static void Domain(Registry& reg, string grp)
 		string name = string("SmallStrainMechanics").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const char*,const char*)>("Function#Subsets")
-			.add_method("add_material_law", &T::add_material_law, "", "material law")
+			.add_method("set_material_law", &T::set_material_law, "", "material law")
 			.add_method("set_output_writer", &T::set_output_writer, "", "set output writer")
 			.add_method("set_quad_order", &T::set_quad_order, "", "order")
 
@@ -116,7 +115,6 @@ static void Domain(Registry& reg, string grp)
 
 			.add_method("add_mass_jacobian", &T::add_mass_jacobian)
 			.add_method("init_state_variables", &T::init_state_variables)
-			//.add_method("close_gnuplot_file", &T::close_gnuplot_file)
 			.add_method("config_string", &T::config_string)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "SmallStrainMechanics", tag);
@@ -183,7 +181,6 @@ static void Domain(Registry& reg, string grp)
 			.add_constructor()
 			.add_method("stress_eigenvalues_at", &T::stress_eigenvalues_at)
 			.add_method("normal_stresses_at", &T::normal_stresses_at)
-			//.add_method("normal_stresses_strains", &T::normal_stresses_strains)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MechOutputWriter", tag);
    }

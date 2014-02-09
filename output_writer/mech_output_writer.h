@@ -93,7 +93,7 @@ class MechOutputWriter
 				TFEGeom& geo, const LocalVector& u);
 
 		template<typename TFEGeom>
-		void next_ips_to_point(vector<size_t> vNextIP, const MathVector<dim>& point,
+		void next_ips_to_point(vector<size_t>& vNextIP, const MathVector<dim>& point,
 				const TFEGeom& geo);
 
 		//	TODO: replace this with a common-implementation

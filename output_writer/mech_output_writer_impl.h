@@ -73,8 +73,6 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 		LocalVector& locEps, TBaseElem* elem, const LocalVector& locU,
 		SmartPtr<TDomain> dom)
 {
-	//SmartPtr<TDomain> dom = this->domain();
-
 //	get all neighbor elems which share a vertex with the given element 'elem'
 	typename TDomain::grid_type& grid = *(dom->grid());
 	vector<TBaseElem*> vNeighborElems;
@@ -233,7 +231,7 @@ void
 MechOutputWriter<TDomain>::
 preprocess()
 {
-	if (m_stressEV)
+	/*if (m_stressEV)
 	{
 		#ifdef UG_PARALLEL
 			if (pcl::GetProcRank() == 0){
@@ -242,7 +240,7 @@ preprocess()
 		#else
 			m_fileStressEV = fopen("sig_eigen.dat", "w");
 		#endif
-	}
+	}*/
 }
 
 template<typename TDomain>
@@ -256,9 +254,6 @@ post_timestep(const number time, SmartPtr<TDomain> dom, TFEGeom& geo,
 	position_accessor_type& aaPos = dom->position_accessor();
 
 	if (m_stressEV && (!m_bIP_values_written)){
-		//if ((ContainsPoint(static_cast<TElem*>(elem), m_evalPointEV, aaPos) == true)
-		//			&& (m_bIP_values_written == false))
-
 		if (ContainsPoint(elem, m_evalPointEV, aaPos)){
 			stress_eigenvalues_near_point(time, geo, u);
 		}
@@ -277,7 +272,7 @@ void
 MechOutputWriter<TDomain>::
 postprocess()
 {
-	if (m_stressEV)
+	/*if (m_stressEV)
 	{
 		#ifdef UG_PARALLEL
 			if (pcl::GetProcRank() == 0){
@@ -286,7 +281,7 @@ postprocess()
 		#else
 			fclose(m_fileStressEV);
 		#endif
-	}
+	}*/
 }
 
 template<typename TDomain>
@@ -331,7 +326,7 @@ stress_eigenvalues_near_point(const number time, TFEGeom& geo,
 			UG_LOG("medium EigenValueSigma: " << sqrSigLambdaMed << "\n");
 			UG_LOG("maximal EigenValueSigma: " << sqrSigLambdaMax << "\n");
 
-			number absSiglambdamax = abs(sqrSigLambdaMax);
+		/*	number absSiglambdamax = abs(sqrSigLambdaMax);
 
 		#ifdef UG_PARALLEL
 			if (pcl::GetProcRank() == 0){
@@ -339,7 +334,7 @@ stress_eigenvalues_near_point(const number time, TFEGeom& geo,
 			}
 		#else
 			fprintf(m_fileStressEV, "%lg %lg \n ", time, absSiglambdamax);
-		#endif
+		#endif*/
 
 		}
 
@@ -379,7 +374,7 @@ template<typename TDomain>
 template<typename TFEGeom>
 void
 MechOutputWriter<TDomain>::
-next_ips_to_point(vector<size_t> vNextIP, const MathVector<dim>& point,
+next_ips_to_point(vector<size_t>& vNextIP, const MathVector<dim>& point,
 		const TFEGeom& geo)
 {
 	number dist = std::numeric_limits<number>::max();

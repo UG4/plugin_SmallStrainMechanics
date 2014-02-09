@@ -91,13 +91,14 @@ class SmallStrainMechanicsElemDisc
 		virtual	~SmallStrainMechanicsElemDisc();
 
 	///	adds a material law
-		void add_material_law(SmartPtr<IMaterialLaw<TDomain> > spMatLaw)
+		void set_material_law(SmartPtr<IMaterialLaw<TDomain> > spMatLaw)
 		{ m_spMatLaw = spMatLaw;}
 
 	///	set an output writer
 		void set_output_writer(SmartPtr<MechOutputWriter<TDomain> > spOutWriter){
 			m_spOutWriter = spOutWriter;
 			m_bOutWriter = true;
+			m_spOutWriter->preprocess();
 		}
 
 	///	set volume forces
@@ -145,28 +146,6 @@ class SmallStrainMechanicsElemDisc
 
 	///	initialize state/"inner" variables
 		void init_state_variables(const size_t order);
-
-	///	get stress eigenvalues at coord
-	/*	void stress_eigenvalues_at(const number CoordX, const number CoordY, const number CoordZ)
-		{
-			m_stressEV = true;
-			m_eigCoordX = CoordX; m_eigCoordY = CoordY; m_eigCoordZ = CoordZ;
-		}
-
-	///	get normal stresses at coord
-		void normal_stresses_at(const number CoordX, const number CoordY, const number CoordZ)
-		{
-			m_normalStress = true;
-			m_normStressCoordX = CoordX; m_normStressCoordY = CoordY; m_normStressCoordZ = CoordZ;
-		}
-
-	/// provides the stress tensor sigma and the linearized strain tensor epsilon
-		void normal_stress_strain_loc(LocalVector& devSigma, LocalVector& sigma,
-				LocalVector& eps, TBaseElem* elem, const LocalVector& u);
-
-	///	closes the gnuplot-file
-		void close_gnuplot_file();
-*/
 
 	/// computing contact forces elementwise by averaging over all integration points
 		template<typename TElem>
@@ -287,9 +266,6 @@ class SmallStrainMechanicsElemDisc
 		void print_mat_constants(const number lambda,
 				const number mu, const number E, const number v);
 
-	///	get trace and deviatoric part of a matrix
-	//	number MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev);
-
 	private:
 		///	sets the requested assembling routines
 		void set_assemble_funcs();
@@ -329,23 +305,9 @@ class SmallStrainMechanicsElemDisc
 	/// add mass jacobian
 		bool m_bAddMassJac;
 
-	///	compute stress-eigenvalues / normalStress at specific corner
-		/*bool m_stressEV;
-		bool m_normalStress;
-
-	/// coords where to get stress-eigenvales/normalStress
-		number m_eigCoordX, m_eigCoordY, m_eigCoordZ;
-		number m_normStressCoordX, m_normStressCoordY, m_normStressCoordZ;
-
-	///	checks if ip values are already written, e.g. in order to write stress-eigenvalues
-		bool m_bIP_values_written;
-*/
 	///	maximal value describing the factor used to project back to the elastic domain
 	///	(in case of plastic behavior)
 		number m_max_gamma;
-
-	///	output-file
-	//	FILE *m_outFile;
 
 		std::string m_materialConfiguration;
 };
