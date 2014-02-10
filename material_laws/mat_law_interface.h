@@ -65,8 +65,13 @@ class IMaterialLaw
 		void DisplacementGradient(MathMatrix<dim, dim>& GradU, const size_t ip,
 				const TFEGeom& geo, const LocalVector& u);
 
+	public:
+		std::string m_materialConfiguration;
+
 	protected:
 		bool m_bInit;
+
+
 };
 
 }//	end of namespace SmallStrainMechanics

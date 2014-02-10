@@ -64,10 +64,7 @@ class MechOutputWriter
 	public:
 		void preprocess();
 		void pre_timestep()
-		{
-			//TODO: m_max_gamma = 0.0;
-			m_bIP_values_written = false;
-		}
+		{ m_bIP_values_written = false;}
 
 		template<typename TFEGeom>
 		void post_timestep(const number time, SmartPtr<TDomain> dom,

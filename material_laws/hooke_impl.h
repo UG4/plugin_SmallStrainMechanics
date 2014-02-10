@@ -8,7 +8,7 @@
 #ifndef HOOKE_IMPL_H_
 #define HOOKE_IMPL_H_
 
-//#include "common/util/string_table_stream.h"
+#include "common/util/string_table_stream.h"
 
 #include "hooke.h"
 
@@ -158,9 +158,6 @@ const number C11, const number C12, const number C13,
 	mat(2,0) = C13; mat(2,1) = C23; mat(2,2) = C33;
 
 	Invert(mat);
-	/* temporarily uncommenting due to registry-error of StringTableStream
-		will be re-included, soon!
-
 	//UG_LOG("S = " mat << "\n");
 	number E1 = 1/mat(0,0), E2 = 1/mat(1,1), E3 = 1/mat(2,2);
 	number v12 = -mat(1, 0)/E1;
@@ -192,8 +189,7 @@ const number C11, const number C12, const number C13,
 	sts << "  G12 = " << G12 << "G23 = " << G23 << "G13 = " << G13 << "\n";
 	ss << sts;
 	m_materialConfiguration = ss.str();
-	UG_LOG("\nset_elasticity_tensor_orthotropic " << ConfigShift(m_materialConfiguration) << "\n");*/
-
+	UG_LOG("\nset_elasticity_tensor_orthotropic " << ConfigShift(m_materialConfiguration) << "\n");
 }
 
 
@@ -246,9 +242,6 @@ set_hooke_elasticity_tensor(const number lambda, const number mu)
 	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
 	m_spElastTensorFunct = spElastTens;
 
-	/* temporarily uncommenting due to registry-error of StringTableStream
-		will be re-included, soon!
-
 	number E = mu * (3.0 * lambda + 2.0 * mu)/(lambda + mu);
 	number v = 0.5 * lambda/(lambda + mu);
 	number kappa = lambda + 2.0/3.0 * mu;
@@ -261,9 +254,9 @@ set_hooke_elasticity_tensor(const number lambda, const number mu)
 	ss << "  young modulus (Elastizitaetsmodul): " << E << "\n";
 	ss << "  poisson ratio (Querkontraktionszahl) v: " << v << "\n";
 	ss << "  bulk modulus (Kompressionsmodul): " << kappa << "\n";
-	ss << "  Elasticity Tensor = " << m_ElastTensorFunct << "\n";
+	ss << "  Elasticity Tensor = " << elastTensorFunct << "\n";
 	m_materialConfiguration = ss.str();
-	UG_LOG("\n" << m_materialConfiguration << "\n");*/
+	UG_LOG("\n" << m_materialConfiguration << "\n");
 }
 
 }//	end of namespace SmallStrainMechanics

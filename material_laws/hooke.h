@@ -92,6 +92,9 @@ class HookeLaw
 			return ss.str();
 		}*/
 
+	public:
+		using base_type::m_materialConfiguration;
+
 	private:
 		void strainTensor(MathMatrix<dim,dim>& strainTens, const MathMatrix<dim, dim>& GradU);
 
@@ -99,7 +102,7 @@ class HookeLaw
 	/// elasticity tensor
 		SmartPtr<MathTensor4<dim,dim,dim,dim> > m_spElastTensorFunct;
 
-	//std::string m_materialConfiguration;
+
 };
 
 }//	end of namespace SmallStrainMechanics

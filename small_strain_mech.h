@@ -183,7 +183,7 @@ class SmallStrainMechanicsElemDisc
 		}
 
 
-	///	returns config information of convergence check and preconditioner
+	///	returns config information of small strain mechanics ElemDisc and material law
 		std::string config_string() const
 		{
 			std::stringstream ss;
@@ -196,10 +196,11 @@ class SmallStrainMechanicsElemDisc
 			if(m_bQuadOrderUserDef)
 				ss << " User Defined Quad Order = " << m_quadOrder << "\n";
 
+			ss << " Material Configuration: " << ConfigShift(m_spMatLaw->m_materialConfiguration) << "\n";
+
 			//ss << " Use Plasticity is " << (m_bUsePlasticity ? "ON" : "OFF") << "\n";
 			//ss << " Hardening: " << ConfigShift(hardening_config_string()) << "\n";
 			//ss << " TangentAccuracy = " << m_tangentAccur << "\n";
-			//ss << " Elasticity Configuration: " << ConfigShift(m_materialConfiguration) << "\n";
 			return ss.str();
 		}
 
@@ -305,11 +306,7 @@ class SmallStrainMechanicsElemDisc
 	/// add mass jacobian
 		bool m_bAddMassJac;
 
-	///	maximal value describing the factor used to project back to the elastic domain
-	///	(in case of plastic behavior)
-		number m_max_gamma;
-
-		std::string m_materialConfiguration;
+		//std::string m_materialConfiguration;
 };
 
 // end group small_strain_mechanics

@@ -249,10 +249,6 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 	MatAdd(strain_p_new, strain_p_old_t, d_strain_p);
 
 	alpha += sqrt(2.0 / 3.0) * gamma;
-
-	//	TODO: m_max_gamma should be modified
-	//if (abs(gamma) > abs(m_max_gamma))
-	//	m_max_gamma = gamma;
 }
 
 template <typename TDomain>
