@@ -96,8 +96,7 @@ class SmallStrainMechanicsElemDisc
 
 	///	set an output writer
 		void set_output_writer(SmartPtr<MechOutputWriter<TDomain> > spOutWriter){
-			m_spOutWriter = spOutWriter;
-			m_bOutWriter = true;
+			m_spOutWriter = spOutWriter; m_bOutWriter = true;
 			m_spOutWriter->preprocess();
 		}
 
@@ -120,26 +119,6 @@ class SmallStrainMechanicsElemDisc
 		void set_pressure(const char* fctName);
 #endif
 		///	\}
-
-
-	///	add mass jacobian
-		void add_mass_jacobian(const bool bMassJac){ m_bAddMassJac = bMassJac;}
-
-		/*std::string hardening_config_string() const
-		{
-			std::stringstream ss;
-			switch (m_hardening)
-			{
-				case 0: return "perfect hardening";
-				case 1: ss << "linear hardening, " << matConsts.config_string(); return ss.str();
-				case 2:
-					ss << "exponential hardening: " << " max hard iter = " << m_MaxHardIter
-					   << " hardening accuary = " << m_HardAccuracy << " "
-					   << matConsts.config_string();
-					return ss.str();
-			}
-			return "unknown hardening behaviour";
-		}*/
 
 	///	sets the quad order
 		void set_quad_order(const size_t order) {m_quadOrder = order; m_bQuadOrderUserDef = true;}
@@ -197,10 +176,6 @@ class SmallStrainMechanicsElemDisc
 				ss << " User Defined Quad Order = " << m_quadOrder << "\n";
 
 			ss << " Material Configuration: " << ConfigShift(m_spMatLaw->m_materialConfiguration) << "\n";
-
-			//ss << " Use Plasticity is " << (m_bUsePlasticity ? "ON" : "OFF") << "\n";
-			//ss << " Hardening: " << ConfigShift(hardening_config_string()) << "\n";
-			//ss << " TangentAccuracy = " << m_tangentAccur << "\n";
 			return ss.str();
 		}
 
@@ -302,11 +277,6 @@ class SmallStrainMechanicsElemDisc
 
 	///	Data import for the reaction term
 		DataImport<number, dim> m_imPressure;
-
-	/// add mass jacobian
-		bool m_bAddMassJac;
-
-		//std::string m_materialConfiguration;
 };
 
 // end group small_strain_mechanics

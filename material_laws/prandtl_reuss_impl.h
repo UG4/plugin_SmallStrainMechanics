@@ -35,6 +35,10 @@ PrandtlReuss<TDomain>::PrandtlReuss():
 
 	matConsts.K_0 = 0.0; m_hardening = 0.0;
 	matConsts.K_inf = 0.0; matConsts.Hard = 0.0; matConsts.omega = 0.0;
+
+	std::stringstream ss;
+	ss << "Prandtl Reuss Plasticity: \n";
+	m_materialConfiguration = ss.str();
 }
 
 template <typename TDomain>
@@ -42,17 +46,30 @@ void
 PrandtlReuss<TDomain>::
 set_hardening_behavior(int hard)
 {
+	std::stringstream ss;
+
 	switch (hard){
 		//	perfect hardening
-		case 0: m_hardening = 0; break;
+		case 0: m_hardening = 0;
+				ss << m_materialConfiguration << "perfect hardening \n";
+				m_materialConfiguration = ss.str();
+				break;
 
 		//	linear hardening
-		case 1: m_hardening = 1; break;
+		case 1: m_hardening = 1;
+				ss << m_materialConfiguration << "linear hardening \n";
+				m_materialConfiguration = ss.str();
+				break;
 
 		//	exponential hardening
 		case 2: m_hardening = 2;
 				m_MaxHardIter = 100;
-				m_HardAccuracy = 1e-10; break;
+				m_HardAccuracy = 1e-10;
+				ss << m_materialConfiguration << "exponential hardening \n"
+				<< " max. hardening iterations = " << m_MaxHardIter
+				<< " hardening accuracy = " << m_HardAccuracy;
+				m_materialConfiguration = ss.str();
+				break;
 
 		default: UG_THROW(hard << " is not a valid hardening behavior! "
 				"Choose 0 (perfect), 1 (linear) or 2 (exponential) ! \n");
@@ -65,7 +82,6 @@ PrandtlReuss<TDomain>::
 init()
 {
 	//	check, if all parameter for a hardening behavior are set
-
 	if (m_hardening == 1){ // linear hardening law
 		if (!m_bHardModulus)
 			UG_THROW("No hardening modulus set! This is necessary for a "

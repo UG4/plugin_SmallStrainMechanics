@@ -81,17 +81,6 @@ class HookeLaw
 		void set_hooke_elasticity_tensor(const number lambda, const number mu);
 		void set_hooke_elasticity_tensor_E_nu(const number E, const number nu);
 
-	///	returns config information
-		/*std::string config_string() const
-		{
-			std::stringstream ss;
-			ss << "HookeLaw " << dim << "d ";
-			if(dim == 2)
-				ss << " [Plain Strain / Ebener Verzerrungszustand]";
-			ss << " Elasticity Configuration: " << ConfigShift(m_materialConfiguration) << "\n";
-			return ss.str();
-		}*/
-
 	public:
 		using base_type::m_materialConfiguration;
 

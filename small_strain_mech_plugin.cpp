@@ -112,8 +112,6 @@ static void Domain(Registry& reg, string grp)
 #ifdef UG_FOR_LUA
 			.add_method("set_pressure", static_cast<void (T::*)(const char*)>(&T::set_pressure), "", "Pressure")
 #endif
-
-			.add_method("add_mass_jacobian", &T::add_mass_jacobian)
 			.add_method("init_state_variables", &T::init_state_variables)
 			.add_method("config_string", &T::config_string)
 			.set_construct_as_smart_pointer(true);

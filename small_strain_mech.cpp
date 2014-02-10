@@ -335,7 +335,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::
 add_jac_M_elem(LocalMatrix& J, const LocalVector& u,
 		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
 {
-	if(m_bAddMassJac)
+	if(m_spMatLaw->needs_to_add_jac_m())
 	{
 		//	request geometry
 		const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
@@ -608,8 +608,7 @@ SmallStrainMechanicsElemDisc<TDomain>::
 SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 			IElemDisc<TDomain> (functions, subsets),
 			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_spOutWriter(SPNULL),
-			m_bOutWriter(false), m_bMatLawPassedToOutWriter(false),
-			m_bAddMassJac(false)
+			m_bOutWriter(false), m_bMatLawPassedToOutWriter(false)
 {
 	//	check number of functions
 	if (this->num_fct() != (size_t) dim)

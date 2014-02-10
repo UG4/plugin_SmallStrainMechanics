@@ -45,7 +45,7 @@ class IMaterialLaw
 		virtual SmartPtr<MathTensor4<dim,dim,dim,dim> >
 			elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU) = 0;
 
-		virtual void print(){};
+		virtual bool needs_to_add_jac_m(){return true;}
 
 		///////////////////////////////////////
 		//	methods for material laws

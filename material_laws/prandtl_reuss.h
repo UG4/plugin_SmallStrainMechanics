@@ -52,38 +52,44 @@ class PrandtlReuss
 
 	///	set-methods for material constants
 		void set_bulk_modulus(const number bulkModulus)
-		{matConsts.kappa = bulkModulus;}
+		{matConsts.kappa = bulkModulus;
+		std::stringstream ss; ss << m_materialConfiguration << " bulk modulus kappa = " << bulkModulus << "\n";
+		m_materialConfiguration = ss.str();}
+
 		void set_shear_modulus(const number shearModulus)
-		{matConsts.mu = shearModulus;}
+		{matConsts.mu = shearModulus;
+		std::stringstream ss; ss << m_materialConfiguration << " shear modulus mu = " << shearModulus << "\n";
+		m_materialConfiguration = ss.str();}
+
 		void set_initial_flow_stress(const number initialFlowStress)
-		{matConsts.K_0 = initialFlowStress;}
+		{matConsts.K_0 = initialFlowStress;
+		std::stringstream ss; ss << m_materialConfiguration << " initial flow-stress K_0 = " << initialFlowStress << "\n";
+		m_materialConfiguration = ss.str();}
+
 		void set_residual_flow_stress(const number resFlowStress)
-		{matConsts.K_inf = resFlowStress;}
+		{matConsts.K_inf = resFlowStress;
+		std::stringstream ss; ss << m_materialConfiguration << " residual flow-stress (saturation stress) K_inf = " << resFlowStress << "\n";
+		m_materialConfiguration = ss.str();}
+
 		void set_hardening_modulus(const number hardModulus)
-		{matConsts.Hard = hardModulus; m_bHardModulus = true;}
+		{matConsts.Hard = hardModulus; m_bHardModulus = true;
+		std::stringstream ss; ss << m_materialConfiguration << " hardening modulus = " << hardModulus << "\n";
+		m_materialConfiguration = ss.str();}
+
 		void set_hardening_exponent(const number hardExponent)
-		{matConsts.omega = hardExponent; m_bHardExp = true;}
+		{matConsts.omega = hardExponent; m_bHardExp = true;
+		std::stringstream ss; ss << m_materialConfiguration << " hardening exponent = " << hardExponent << "\n";
+		m_materialConfiguration = ss.str();}
+
 		void set_hardening_behavior(int hard);
 
 	///	set precision of numerical approximation of the tangent
 		void set_tangent_precision(const number tanAccur)
-		{m_tangentAccur = tanAccur;}
+		{m_tangentAccur = tanAccur;
+		std::stringstream ss; ss << m_materialConfiguration << "accuracy of the tangent approximation = " << tanAccur << "\n";
+		m_materialConfiguration = ss.str();}
 
-		/*std::string hardening_config_string() const
-		{
-			std::stringstream ss;
-			switch (m_hardening)
-			{
-				case 0: return "perfect hardening";
-				case 1: ss << "linear hardening, " << matConsts.config_string(); return ss.str();
-				case 2:
-					ss << "exponential hardening: " << " max hard iter = " << m_MaxHardIter
-					   << " hardening accuary = " << m_HardAccuracy << " "
-					   << matConsts.config_string();
-					return ss.str();
-			}
-			return "unknown hardening behaviour";
-		}*/
+
 	public:
 	////////////////////////////
 	// INTERFACE-METHODS
@@ -98,6 +104,8 @@ class PrandtlReuss
 		SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
 			elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU);
 
+		virtual bool needs_to_add_jac_m(){return false;}
+
 
 		virtual void init_internal_vars(TBaseElem* elem, const size_t numIP);
 		virtual void internal_vars(TBaseElem* elem);
@@ -107,9 +115,6 @@ class PrandtlReuss
 
 		virtual void attach_internal_vars(typename TDomain::grid_type& grid)
 		{
-			UG_LOG("attach attachments call \n");
-
-			//typename TDomain::grid_type& grid = dom->grid();
 	//todo:	Move this to an initialization routine. Best would probably to make
 	//		set_domain(...) of the base class virtual and to attach m_aElemData there.
 
@@ -119,9 +124,6 @@ class PrandtlReuss
 
 		virtual void clear_attachments(typename TDomain::grid_type& grid)
 		{
-			UG_LOG("clear attachments call \n");
-
-			//typename TDomain::grid_type& grid = dom->grid();
 			if(grid.template has_attachment<TBaseElem>(m_aElemData)){
 				grid.template detach_from<TBaseElem>(m_aElemData);
 				m_aaElemData.invalidate();
@@ -169,9 +171,10 @@ class PrandtlReuss
 	private:
 	/// attached ElemData
 		struct InternalVars {
-		//	plastic part of strain tensor wrt to last time step
+			//	plastic part of strain tensor wrt to last time step
 			MathMatrix<dim, dim> strain_p_old_t;
-		//	hardening variable
+
+			//	hardening variable
 			number alpha;
 		};
 
@@ -201,18 +204,6 @@ class PrandtlReuss
 			number K_inf; 	//	residual flow-stress (saturation stress)
 			number Hard;	//	linear hardening modulus
 			number omega;	//	hardening exponent
-
-			/*std::string config_string() const
-			{
-				std::stringstream ss;
-				ss << "MaterialConstant:\n";
-				if(mu != 0.0) ss << " shear modulus mu = " << mu << "\n";
-				if(kappa != 0.0) ss << " bulk modulus kappa = " << kappa << "\n";
-				if(K_inf != 0.0) ss << " residual flow-stress (saturation stress) K_inf = " << K_inf << "\n";
-				if(Hard != 0.0)  ss << " linear hardening modulus = " << Hard << "\n";
-				if(omega != 0.0) ss << " hardening exponent omega = " << omega;
-				return ss.str();
-			}*/
 		}matConsts;
 
 	/// tangent accuracy
@@ -221,6 +212,9 @@ class PrandtlReuss
 	///	flags indicating if hardening variables are set
 		bool m_bHardModulus;
 		bool m_bHardExp;
+
+	public:
+		using base_type::m_materialConfiguration;
 };
 
 }//	end of namespace SmallStrainMechanics
