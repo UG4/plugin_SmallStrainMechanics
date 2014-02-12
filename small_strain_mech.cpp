@@ -157,7 +157,7 @@ init_state_variables(const size_t order)
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechInit_state_variables);
 
 /*#ifdef UG_PARALLEL
-	if (pcl::GetProcRank() == 0){
+	if (pcl::ProcRank() == 0){
 		m_testFile = fopen("sig_eigen.dat", "w");
 	}
 #else

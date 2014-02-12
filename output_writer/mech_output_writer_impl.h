@@ -234,7 +234,7 @@ preprocess()
 	/*if (m_stressEV)
 	{
 		#ifdef UG_PARALLEL
-			if (pcl::GetProcRank() == 0){
+			if (pcl::ProcRank() == 0){
 				m_fileStressEV = fopen("sig_eigen.dat", "w");
 			}
 		#else
@@ -275,7 +275,7 @@ postprocess()
 	/*if (m_stressEV)
 	{
 		#ifdef UG_PARALLEL
-			if (pcl::GetProcRank() == 0){
+			if (pcl::ProcRank() == 0){
 				fclose(m_fileStressEV);
 			}
 		#else
@@ -329,7 +329,7 @@ stress_eigenvalues_near_point(const number time, TFEGeom& geo,
 		/*	number absSiglambdamax = abs(sqrSigLambdaMax);
 
 		#ifdef UG_PARALLEL
-			if (pcl::GetProcRank() == 0){
+			if (pcl::ProcRank() == 0){
 				fprintf(m_fileStressEV, "%lg %lg \n ", time, absSiglambdamax);
 			}
 		#else
