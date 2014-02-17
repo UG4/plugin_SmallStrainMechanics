@@ -45,7 +45,6 @@ class MechOutputWriter
 		}
 
 	///	get normal stresses at point
-	//	TODO: implement the 2D version by means of '=0' for the third parameter
 		void normal_stresses_at(const number CoordX,
 				const number CoordY, const number CoordZ)
 		{
