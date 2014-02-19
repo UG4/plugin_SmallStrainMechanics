@@ -15,6 +15,16 @@ namespace SmallStrainMechanics{
 /**
  * 	A material law for small strain elastoplastic material behavior
  *
+ * 	It is supposed, that the linearized strain tensor could be decomposed additively:
+ *
+ *  eps = eps_e + eps_p.
+ *
+ *  The plastic behavior is described by a flow-condition and a flow-rule for the plastic
+ *  evolution (\frac{\partial eps_p){\partial t} = ...). The flow-condition is of
+ *  von-Mises-type and the flow-rule is associative. To treat the plasticity
+ *  we use the well-established return-mapping-algorithm. Its classical form is valid for the
+ *  3d-case and the plane strain-case, but not for the plane stress-case!
+ *
  * References:
  * <ul>
  * <li> J. C. Simo and T.J.R. Hughes. Computational Inelasticity. Spinger, New York (1998), chapter 3.3.1
@@ -22,7 +32,7 @@ namespace SmallStrainMechanics{
  * <li> finite-element computations of elastoplastic deformations. Computational Mechanics Vol. 22, 225-238 (1998)
  *</ul>
  *
- * \tparam 	int		dim
+ * \tparam TDomain
  */
 
 template <typename TDomain>

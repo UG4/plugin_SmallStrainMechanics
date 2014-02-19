@@ -30,33 +30,39 @@ namespace SmallStrainMechanics{
 /// \{
 /// Element Discretization for Linear Elasticity and Elasto-Plasticity problems (restricted to small deformations)
 /**
-* This class assembles the equation of the linear elasticity problem:
+* This class assembles the equation of the static linear elasticity problem:
 *
-*  - div(sigma) = f - rho * \frac{\partial^2 u}{\partial^2 t}
-*  sigma = C : epsilon
-*  epsilon = 1/2 (nabla_u + nabla_u^T)
+*  (1)		- div(sigma) = f
+*  (2)		sigma = C : epsilon
+*  (3)		epsilon = 1/2 (nabla_u + nabla_u^T)
+*
+*		+ boundary conditions.
 *
 *  As common in the linear theory we identify the deformed configuration with
 *  the undeformed configuration. Therefore we do not have to distinguish between
 *  different stress measures.
-*  Here we use a pure displacement-ansatz to solve the coupled system above.
+*  Here we use a pure displacement-ansatz to solve the coupled system above,
+*  i.e. the kinematic equation for the linearized strain tensor epsilon (3) is inserted in
+*  the material law (2) and the resulting stress tensor sigma is introduced in the momentum balance
+*  equation (1). Therein, the computation of the strain and the stress tensor is performed at the
+*  integration points! Following this approach, the only remaining unknown function
+*  is the displacement field u!
 *
 *  \TODO: in case of linear elasticity one can implement the voigt notation (exploiting
 *  	  symmetry of sigma and epsilon)
 *
-*  For plastic material behavior we suppose, that the linearized strain tensor could be
-*  decomposed additively:
+*  In order to compute the eigenfrequencies of a system by means of the eigenvalue problem
+*  the second time derivatives of u
 *
-*  eps = eps_e + eps_p.
+*  		- rho * \frac{\partial^2 u}{\partial^2 t}
 *
-*  The plastic behavior is described by a flow-condition and a flow-rule for the plastic
-*  evolution (\frac{\partial eps_p){\partial t} = ...). At present a flow-condition of
-*  von-Mises-type and an associative flow-rule are implemented. To treat the plasticity
-*  we use the well-established return-mapping-algorithm. This algorithm is valid for the
-*  3d-case and the plane strain-case, but not for the plane stress-case!
-*  The plastic material behavior should be enabled by the script-call:
-*  "elemDisc:use_elastoplast_mat_behavior(true)"
-*  before the "elemDisc:set_hooke_elasticity_tensor"-call!
+*  are considered in the momentum equation (1) and deliver a contribution to the mass matrix.
+*
+* References:
+* <ul>
+* <li> M. Rupp. Berechnung der Resonanzschwingungen einer Gitarrendecke.
+* <li> (Diplomarbeit, 2009, Universität Heidelberg)
+* <ul>
 */
 
 template <typename TDomain>
