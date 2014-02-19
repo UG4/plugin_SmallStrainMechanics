@@ -655,8 +655,8 @@ template<>
 void SmallStrainMechanicsElemDisc<Domain1d>::register_all_fe_funcs(int order,
 		int quadOrder)
 {
-	//	Edge
-	register_fe_func<Edge, DimFEGeometry<dim> > ();
+	//	RegularEdge
+	register_fe_func<RegularEdge, DimFEGeometry<dim> > ();
 }
 #endif
 

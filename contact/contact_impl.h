@@ -406,8 +406,8 @@ void ContactSmallStrainMechanics<TDomain, TGridFunction>::lagrange_multiplier(
 		switch(subsetDim)
 		{
 		case 1:
-			contact_forces_elem<Edge>
-				(dd->template begin<Edge>(*siContact), dd->template end<Edge>(*siContact),
+			contact_forces_elem<RegularEdge>
+				(dd->template begin<RegularEdge>(*siContact), dd->template end<RegularEdge>(*siContact),
 						u, contactForce, vActiveSetGlob);
 			break;
 		case 2:
