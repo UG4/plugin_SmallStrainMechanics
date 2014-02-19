@@ -48,7 +48,7 @@ template <> struct face_type_traits<3>
 template <typename TDomain>
 template <typename TElem>
 void SmallStrainMechanicsElemDisc<TDomain>::contact_forces_elem_ips_avg(
-		LocalVector& locForce, GeometricObject* side,
+		LocalVector& locForce, GridObject* side,
 		TElem* elem, const MathVector<dim> sideCoPos[], int numElemCorners,
 		const LocalVector& locU, vector<DoFIndex> vActiveSetLoc)
 {

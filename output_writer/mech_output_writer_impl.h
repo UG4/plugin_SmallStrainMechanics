@@ -24,21 +24,21 @@ normal_stresses_strains(MechOutputWriter<typename TGridFunction::domain_type>& m
 		TGridFunction& epsilon, TGridFunction& u)
 {
 	static const int dim = TGridFunction::dim;
-	typedef typename TGridFunction::template dim_traits<dim>::geometric_base_object geometric_base_object;
+	typedef typename TGridFunction::template dim_traits<dim>::grid_base_object grid_base_object;
 	typedef typename TGridFunction::template dim_traits<dim>::const_iterator const_iterator;
 
 	// 	local indices and local algebra
 	LocalIndices indU, indEps, indSig, indDevSig;
 	LocalVector locU, locSig, locEps, locDevSig;
 
-	const_iterator iter = u.template begin<geometric_base_object>();
-	const_iterator end = u.template end<geometric_base_object>();
+	const_iterator iter = u.template begin<grid_base_object>();
+	const_iterator end = u.template end<grid_base_object>();
 
 	//	loop over all elements
 	for(;iter != end; ++iter)
 	{
 		//	get element
-		geometric_base_object* elem = *iter;
+		grid_base_object* elem = *iter;
 
 		// 	get global indices
 		u.indices(elem, indU); epsilon.indices(elem, indEps);

@@ -21,7 +21,7 @@ class MechOutputWriter
 {
 	private:
 	///	base element type of associated domain
-		typedef typename domain_traits<TDomain::dim>::geometric_base_object TBaseElem;
+		typedef typename domain_traits<TDomain::dim>::grid_base_object TBaseElem;
 
 	public:
 	///	World dimension

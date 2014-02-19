@@ -61,7 +61,7 @@ namespace SmallStrainMechanics{
 * References:
 * <ul>
 * <li> M. Rupp. Berechnung der Resonanzschwingungen einer Gitarrendecke.
-* <li> (Diplomarbeit, 2009, UniversitŠt Heidelberg)
+* <li> (Diplomarbeit, 2009, Universitï¿½t Heidelberg)
 * <ul>
 */
 
@@ -77,7 +77,7 @@ class SmallStrainMechanicsElemDisc
 		typedef SmallStrainMechanicsElemDisc<TDomain> this_type;
 
 	///	base element type of associated domain
-		typedef typename domain_traits<TDomain::dim>::geometric_base_object TBaseElem;
+		typedef typename domain_traits<TDomain::dim>::grid_base_object TBaseElem;
 
 	public:
 	///	Domain type
@@ -134,7 +134,7 @@ class SmallStrainMechanicsElemDisc
 
 	/// computing contact forces elementwise by averaging over all integration points
 		template<typename TElem>
-		void contact_forces_elem_ips_avg(LocalVector& locForce, GeometricObject* side, TElem* elem,
+		void contact_forces_elem_ips_avg(LocalVector& locForce, GridObject* side, TElem* elem,
 				const MathVector<dim> sideCoPos[], int numElemCorners, const LocalVector& locU,
 				std::vector<DoFIndex> vActiveSetLoc);
 
@@ -190,34 +190,34 @@ class SmallStrainMechanicsElemDisc
 
 		///	assemble methods
 		template<typename TElem, typename TFEGeom>
-		void prep_timestep_elem(const number time, const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void prep_timestep_elem(const number time, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
 		void prep_elem_loop(const ReferenceObjectID roid, const int si);
 
 		template<typename TElem, typename TFEGeom>
-		void prep_elem(const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void prep_elem(const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
 		void fsh_elem_loop();
 
 		template<typename TElem, typename TFEGeom>
-		void add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void add_jac_A_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
-		void add_jac_M_elem(LocalMatrix& J, const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void add_jac_M_elem(LocalMatrix& J, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
-		void add_def_A_elem(LocalVector& d, const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void add_def_A_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
-		void add_def_M_elem(LocalVector& d, const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void add_def_M_elem(LocalVector& d, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
-		void add_rhs_elem(LocalVector& d, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
-		void fsh_timestep_elem(const number time, const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[]);
+		void fsh_timestep_elem(const number time, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
 	protected:
 		template <typename TElem, typename TFEGeom>

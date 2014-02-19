@@ -207,7 +207,7 @@ template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
 prep_timestep_elem(const number time, const LocalVector& u,
-		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	if (m_bOutWriter)
 		m_spOutWriter->pre_timestep();
@@ -261,7 +261,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::fsh_elem_loop()
 template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
-prep_elem(const LocalVector& u, GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+prep_elem(const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	//	request geometry
 	TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
@@ -284,7 +284,7 @@ template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
 add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
-		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechAddJacA);
 
@@ -333,7 +333,7 @@ template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
 add_jac_M_elem(LocalMatrix& J, const LocalVector& u,
-		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	if(m_spMatLaw->needs_to_add_jac_m())
 	{
@@ -361,7 +361,7 @@ template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
 add_def_A_elem(LocalVector& d, const LocalVector& u,
-		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechAddDefA);
 	//if (0){
@@ -451,14 +451,14 @@ template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
 add_def_M_elem(LocalVector& d, const LocalVector& u,
-		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {}
 
 //  assemble right-hand-side
 template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
-add_rhs_elem(LocalVector& d, GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	// consider volume forces
 	if(!m_imVolForce.data_given()) return;
@@ -544,7 +544,7 @@ template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
 fsh_timestep_elem(const number time, const LocalVector& u,
-		GeometricObject* elem, const MathVector<dim> vCornerCoords[])
+		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechFshTimeStepElem);
 
