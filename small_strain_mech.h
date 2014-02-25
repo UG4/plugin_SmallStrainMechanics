@@ -61,7 +61,7 @@ namespace SmallStrainMechanics{
 * References:
 * <ul>
 * <li> M. Rupp. Berechnung der Resonanzschwingungen einer Gitarrendecke.
-* <li> (Diplomarbeit, 2009, Universit\"at Heidelberg)
+* <li> (Diplomarbeit, 2009, Universitaet Heidelberg)
 * <ul>
 */
 
@@ -282,6 +282,46 @@ class SmallStrainMechanicsElemDisc
 
 	///	Data import for the reaction term
 		DataImport<number, dim> m_imPressure;
+
+
+	public:
+			typedef SmartPtr<CplUserData<number, dim> > NumberExport;
+			typedef SmartPtr<CplUserData<MathVector<dim>, dim> > VectorExport;
+
+			VectorExport displacement() {return m_exDisplacement;}
+			NumberExport divergence() {return m_exDivergence;}
+
+	protected:
+		///	Export
+			SmartPtr<DataExport<MathVector<dim>, dim> >  m_exDisplacement;
+			SmartPtr<DataExport<number, dim> > m_exDivergence;
+
+			///	computes the displacement
+			template <typename TElem, typename TFEGeom>
+			void ex_displacement_fe(MathVector<dim> vValue[],
+					const MathVector<dim> vGlobIP[],
+					number time, int si,
+					const LocalVector& u,
+					GridObject* elem,
+					const MathVector<dim> vCornerCoords[],
+					const MathVector<TFEGeom::dim> vLocIP[],
+					const size_t nip,
+					bool bDeriv,
+					std::vector<std::vector<MathVector<dim> > > vvvDeriv[]);
+
+		///	computes the divergence of displacement
+		template <typename TElem, typename TFEGeom>
+		void ex_divergence_fe(number vValue[],
+				const MathVector<dim> vGlobIP[],
+				number time, int si,
+				const LocalVector& u,
+				GridObject* elem,
+				const MathVector<dim> vCornerCoords[],
+				const MathVector<TFEGeom::dim> vLocIP[],
+				const size_t nip,
+				bool bDeriv,
+				std::vector<std::vector<number> > vvvDeriv[]);
+
 };
 
 // end group small_strain_mechanics

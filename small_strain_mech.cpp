@@ -608,7 +608,10 @@ SmallStrainMechanicsElemDisc<TDomain>::
 SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 			IElemDisc<TDomain> (functions, subsets),
 			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_spOutWriter(SPNULL),
-			m_bOutWriter(false), m_bMatLawPassedToOutWriter(false)
+			m_bOutWriter(false), m_bMatLawPassedToOutWriter(false),
+			m_exDisplacement(new DataExport<MathVector<dim>, dim>(functions)),
+			//m_exDisplacement(new VectorDataExport<dim>(functions)),
+			m_exDivergence(new DataExport<number, dim>(functions))
 {
 	//	check number of functions
 	if (this->num_fct() != (size_t) dim)
@@ -645,6 +648,197 @@ SmallStrainMechanicsElemDisc<TDomain>::
 	m_spMatLaw->clear_attachments(grid);
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+//	 export functions
+////////////////////////////////////////////////////////////////////////////////
+
+///	computes the displacement
+template <typename TDomain>
+template <typename TElem, typename TFEGeom>
+void  SmallStrainMechanicsElemDisc<TDomain>::
+ex_displacement_fe(MathVector<dim> vValue[],
+			const MathVector<dim> vGlobIP[],
+			number time, int si,
+			const LocalVector& u,
+			GridObject* elem,
+			const MathVector<dim> vCornerCoords[],
+			const MathVector<TFEGeom::dim> vLocIP[],
+			const size_t nip,
+			bool bDeriv,
+			std::vector<std::vector<MathVector<dim> > > vvvDeriv[])
+{
+
+	//	request geometry
+	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+
+	//	reference element
+	typedef typename reference_element_traits<TElem>::reference_element_type
+			ref_elem_type;
+
+	//	reference dimension
+	static const int refDim = reference_element_traits<TElem>::dim;
+
+	//	reference object id
+	static const ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
+
+	//	FE
+	if(vLocIP == geo.local_ips())
+	{
+		//	Loop ip
+		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{
+			MathVector<dim> &uip=vValue[ip];
+			VecSet(uip, 0.0);
+
+			// loop shape-fcts & components
+			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+				for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+					uip[alpha] += u(alpha,sh)*geo.shape(ip, sh);
+
+			if(bDeriv)
+			{
+				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+					{ vvvDeriv[ip][sh][alpha] = geo.shape(ip, sh); }
+			}
+		}
+	}
+	// 	general case
+	else
+	{
+
+		// 	general case
+		try{
+			//	request for trial space
+			const LocalShapeFunctionSet<refDim>& rTrialSpace
+			= LocalFiniteElementProvider::get<refDim>(roid, m_lfeID);
+
+			//	number of shape functions
+			const size_t numSH = rTrialSpace.num_sh();
+
+			//	storage for shape function at ip
+			std::vector<number> vShape(numSH);
+
+			//	loop ips
+			for(size_t ip = 0; ip < nip; ++ip)
+			{
+				//	evaluate at shapes at ip
+				rTrialSpace.shapes(vShape, vLocIP[ip]);
+
+
+				MathVector<dim> &uip=vValue[ip];
+				VecSet(uip, 0.0);
+
+				// loop shape-fcts & components
+				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+						uip[alpha] += u(alpha,sh)*geo.shape(ip, sh);
+
+				if(bDeriv)
+				{
+					for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+						for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+						{ vvvDeriv[ip][alpha][sh] = geo.shape(ip, sh); }
+				}
+
+			}
+
+		}
+		UG_CATCH_THROW("SmallStrainMechanicsElemDisc::ex_divergence_fe: trial space missing.");
+	}
+}
+
+///	computes the divergence of displacement
+template <typename TDomain>
+template <typename TElem, typename TFEGeom>
+void SmallStrainMechanicsElemDisc<TDomain>::
+ex_divergence_fe(number vValue[],
+						const MathVector<dim> vGlobIP[],
+						number time, int si,
+						const LocalVector& u,
+						GridObject* elem,
+						const MathVector<dim> vCornerCoords[],
+						const MathVector<TFEGeom::dim> vLocIP[],
+						const size_t nip,
+						bool bDeriv,
+						std::vector<std::vector<number> > vvvDeriv[])
+						{
+	//	request geometry
+	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+
+	//	reference element
+	typedef typename reference_element_traits<TElem>::reference_element_type
+			ref_elem_type;
+
+	//	reference dimension
+	static const int refDim = reference_element_traits<TElem>::dim;
+
+	//	reference object id
+	static const ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
+
+	//	FE
+	if(vLocIP == geo.local_ips())
+	{
+		//	Loop ip
+		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{
+			number &divip=vValue[ip];
+			divip = 0.0;
+
+			// loop shape-fcts & components
+			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+				for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+				{ divip += u(alpha,sh)*geo.global_grad(ip, sh)[alpha]; }
+
+			if(bDeriv){
+				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+					{ vvvDeriv[ip][alpha][sh] = geo.global_grad(ip, sh)[alpha];}
+			}
+		}
+	}
+
+	else
+	{
+		// 	general case
+		try{
+			//	request for trial space
+			const LocalShapeFunctionSet<refDim>& rTrialSpace
+			= LocalFiniteElementProvider::get<refDim>(roid, m_lfeID);
+
+			//	number of shape functions
+			const size_t numSH = rTrialSpace.num_sh();
+
+			//	storage for shape function at ip
+			std::vector<number> vShape(numSH);
+
+			//	loop ips
+			for(size_t ip = 0; ip < nip; ++ip)
+			{
+				//	evaluate at shapes at ip
+				rTrialSpace.shapes(vShape, vLocIP[ip]);
+
+				number &divip=vValue[ip];
+				divip = 0.0;
+
+				// loop shape-fcts & components
+				for(size_t sh = 0; sh < numSH; ++sh)
+					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+					{ divip += u(alpha,sh)*geo.global_grad(ip, sh)[alpha]; }
+
+				if(bDeriv){
+					for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+						for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
+						{ vvvDeriv[ip][sh][alpha] = geo.global_grad(ip, sh)[alpha];}
+				}
+			}
+
+		}
+		UG_CATCH_THROW("SmallStrainMechanicsElemDisc::ex_divergence_fe: trial space missing.");
+
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //	register assemble functions
@@ -816,6 +1010,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 {
 	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
 	typedef this_type T;
+	static const int refDim = reference_element_traits<TElem>::dim;
 
 	this->enable_fast_add_elem(true);
 	this->set_prep_timestep_elem_fct(id,
@@ -840,9 +1035,8 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 	m_imPressure.set_fct(id, this, &T::template lin_def_pressure<TElem, TFEGeom>);
 
 	//	exports
-//	m_exValue->	  template set_fct<T,refDim>(id, this, &T::template ex_value_fe<TElem, TGeomProvider>);
-//	m_exGrad->    template set_fct<T,refDim>(id, this, &T::template ex_grad_fe<TElem, TGeomProvider>);
-
+	m_exDisplacement->  template set_fct<T,refDim>(id, this, &T::template ex_displacement_fe<TElem, TFEGeom>);
+	m_exDivergence->    template set_fct<T,refDim>(id, this, &T::template ex_divergence_fe<TElem, TFEGeom>);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
