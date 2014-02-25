@@ -61,7 +61,7 @@ namespace SmallStrainMechanics{
 * References:
 * <ul>
 * <li> M. Rupp. Berechnung der Resonanzschwingungen einer Gitarrendecke.
-* <li> (Diplomarbeit, 2009, Universit�t Heidelberg)
+* <li> (Diplomarbeit, 2009, Universit\"at Heidelberg)
 * <ul>
 */
 
@@ -188,6 +188,13 @@ class SmallStrainMechanicsElemDisc
 	private:
 		size_t num_fct() const {return dim;}
 
+		///	sets the requested assembling routines
+		void set_assemble_funcs();
+
+		void register_all_fe_funcs(int order, int quadOrder);
+		template <typename TElem, typename TFEGeom>
+		void register_fe_func();
+
 		///	assemble methods
 		template<typename TElem, typename TFEGeom>
 		void prep_timestep_elem(const number time, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
@@ -219,28 +226,7 @@ class SmallStrainMechanicsElemDisc
 		template<typename TElem, typename TFEGeom>
 		void fsh_timestep_elem(const number time, const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
 
-	protected:
-		template <typename TElem, typename TFEGeom>
-		void lin_def_pressure(const LocalVector& u,
-				              std::vector<std::vector<number> > vvvLinDef[],
-				              const size_t nip);
 
-		template <typename TElem, typename TFEGeom>
-		void lin_def_volume_forces(const LocalVector& u,
-				                  std::vector<std::vector<MathVector<dim> > > vvvLinDef[],
-				                  const size_t nip);
-
-		///	computes the displacements (and derivatives)
-		template <typename TElem, typename TFEGeom>
-		void ex_displacement(const LocalVector& u,
-				          	 const MathVector<dim> vGlobIP[],
-				             const MathVector<TFEGeom::Type::dim> vLocIP[],
-				             const size_t nip,
-				             MathVector<dim> vValue[],
-				             bool bDeriv,
-				             std::vector<std::vector<MathVector<dim> > > vvvDeriv[]);
-
-	private:
 	///	updates the geometry for a given element
 		void update_geo_elem(TBaseElem* elem, DimFEGeometry<dim>& geo);
 
@@ -248,13 +234,26 @@ class SmallStrainMechanicsElemDisc
 		void print_mat_constants(const number lambda,
 				const number mu, const number E, const number v);
 
-	private:
-		///	sets the requested assembling routines
-		void set_assemble_funcs();
-
-		void register_all_fe_funcs(int order, int quadOrder);
+	protected:
 		template <typename TElem, typename TFEGeom>
-		void register_fe_func();
+		void lin_def_pressure(const LocalVector& u,
+							  std::vector<std::vector<number> > vvvLinDef[],
+							  const size_t nip);
+
+		template <typename TElem, typename TFEGeom>
+		void lin_def_volume_forces(const LocalVector& u,
+								  std::vector<std::vector<MathVector<dim> > > vvvLinDef[],
+								  const size_t nip);
+
+		///	computes the displacements (and derivatives)
+		template <typename TElem, typename TFEGeom>
+		void ex_displacement(const LocalVector& u,
+							 const MathVector<dim> vGlobIP[],
+							 const MathVector<TFEGeom::Type::dim> vLocIP[],
+							 const size_t nip,
+							 MathVector<dim> vValue[],
+							 bool bDeriv,
+							 std::vector<std::vector<MathVector<dim> > > vvvDeriv[]);
 
 	private:
 	///	material law

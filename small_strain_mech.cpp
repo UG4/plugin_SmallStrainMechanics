@@ -122,8 +122,8 @@ set_pressure(const char* fctName)
 //////////////////////////////////
 
 template<typename TDomain>
-void SmallStrainMechanicsElemDisc<TDomain>::update_geo_elem(
-		TBaseElem* elem, DimFEGeometry<dim>& geo)
+void SmallStrainMechanicsElemDisc<TDomain>::
+update_geo_elem(TBaseElem* elem, DimFEGeometry<dim>& geo)
 {
 	SmartPtr<TDomain> dom = this->domain();
 

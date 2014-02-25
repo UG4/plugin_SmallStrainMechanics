@@ -120,9 +120,9 @@ class PrandtlReuss
 		virtual void init_internal_vars(TBaseElem* elem, const size_t numIP);
 		virtual void internal_vars(TBaseElem* elem);
 		virtual void update_internal_vars(const size_t ip, const MathMatrix<dim, dim>& GradU);
+
 	///	use this method to make sure that all required attachments are attached
 	/**	This method won't be necessary if we attach m_aElemData during initialization.*/
-
 		virtual void attach_internal_vars(typename TDomain::grid_type& grid)
 		{
 	//todo:	Move this to an initialization routine. Best would probably to make

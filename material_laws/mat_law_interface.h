@@ -71,7 +71,6 @@ class IMaterialLaw
 	protected:
 		bool m_bInit;
 
-
 };
 
 }//	end of namespace SmallStrainMechanics
