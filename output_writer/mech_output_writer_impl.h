@@ -8,7 +8,6 @@
 #ifndef MECH_OUTPUT_WRITER_IMPL_H_
 #define MECH_OUTPUT_WRITER_IMPL_H_
 
-
 #include "lib_grid/algorithms/geom_obj_util/geom_obj_util.h"
 
 // module intern headers
@@ -100,7 +99,6 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
    	UG_CATCH_THROW("SmallStrainMechOutput::normal_stress_strain_loc:"
 					" Cannot update Finite Element Geometry.");
 
-	//	m_pElemData = &m_aaElemData[static_cast<TBaseElem*>(elem)];
 	//  pointer to internal variable of current elem
 	m_spMatLaw->internal_vars(elem);
 
@@ -223,9 +221,6 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 	};
 }
 
-
-
-
 template<typename TDomain>
 void
 MechOutputWriter<TDomain>::
@@ -247,7 +242,7 @@ template<typename TDomain>
 template<typename TFEGeom>
 void
 MechOutputWriter<TDomain>::
-post_timestep(const number time, SmartPtr<TDomain> dom, TFEGeom& geo,
+post_timestep_elem(const number time, SmartPtr<TDomain> dom, TFEGeom& geo,
 		TBaseElem* elem, const LocalVector& u)
 {
 	typedef typename TDomain::position_accessor_type position_accessor_type;

@@ -563,7 +563,7 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 	//	call OutputWriter
 	if (m_bOutWriter){
 		SmartPtr<TDomain> dom = this->domain();
-		m_spOutWriter->post_timestep(time, dom, geo, static_cast<TElem*>(elem), u);
+		m_spOutWriter->post_timestep_elem(time, dom, geo, static_cast<TElem*>(elem), u);
 	}
 
 	//	UPDATE PLASTIC STRAINS 'eps_p' AND HARDENING VARIABLE 'alpha'
@@ -574,7 +574,6 @@ fsh_timestep_elem(const number time, const LocalVector& u,
 		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
 		m_spMatLaw->update_internal_vars(ip, GradU);
 	}
-
 }
 
 

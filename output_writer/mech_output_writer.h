@@ -66,8 +66,10 @@ class MechOutputWriter
 		{ m_bIP_values_written = false;}
 
 		template<typename TFEGeom>
-		void post_timestep(const number time, SmartPtr<TDomain> dom,
+		void post_timestep_elem(const number time, SmartPtr<TDomain> dom,
 				TFEGeom& geo, TBaseElem* elem, const LocalVector& u);
+
+		void post_timestep(const number time){};
 		void postprocess();
 
 		void material_law(SmartPtr<IMaterialLaw<TDomain> > spMatLaw)
@@ -75,11 +77,14 @@ class MechOutputWriter
 		void quad_order(const int quadOrder)
 			{m_quadOrder = quadOrder;}
 
-
 		void normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 			LocalVector& locEps, TBaseElem* elem, const LocalVector& locU, SmartPtr<TDomain> dom);
 
 	private:
+		template<typename TFEGeom>
+		void next_ips_to_point(vector<size_t>& vNextIP, const MathVector<dim>& point,
+				const TFEGeom& geo);
+
 		template<typename TFEGeom>
 		void stress_eigenvalues_near_point(const number time,
 				TFEGeom& geo, const LocalVector& u);
@@ -87,10 +92,6 @@ class MechOutputWriter
 		template<typename TFEGeom>
 		void normal_stress_near_point(const number time,
 				TFEGeom& geo, const LocalVector& u);
-
-		template<typename TFEGeom>
-		void next_ips_to_point(vector<size_t>& vNextIP, const MathVector<dim>& point,
-				const TFEGeom& geo);
 
 		//	TODO: replace this with a common-implementation
 		number MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev);
@@ -117,6 +118,7 @@ class MechOutputWriter
 
 };
 
+//	some global output functions
 
 template<typename TGridFunction>
 void normal_stresses_strains(MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
