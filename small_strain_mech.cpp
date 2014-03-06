@@ -1011,7 +1011,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 	typedef this_type T;
 	static const int refDim = reference_element_traits<TElem>::dim;
 
-	this->enable_fast_add_elem(true);
+	this->clear_add_fct(id);
 	this->set_prep_timestep_elem_fct(id,
 			&T::template prep_timestep_elem<TElem, TFEGeom>);
 	this->set_prep_elem_loop_fct(id,
