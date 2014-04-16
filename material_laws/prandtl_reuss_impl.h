@@ -33,7 +33,7 @@ PrandtlReuss<TDomain>::PrandtlReuss():
 	// set default material constants
 	matConsts.mu = 0.0; matConsts.kappa = 0.0;
 
-	matConsts.K_0 = 0.0; m_hardening = 0.0;
+	matConsts.K_0 = 0.0; m_hardening = 0;
 	matConsts.K_inf = 0.0; matConsts.Hard = 0.0; matConsts.omega = 0.0;
 
 	std::stringstream ss;
