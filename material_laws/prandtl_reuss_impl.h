@@ -27,7 +27,7 @@ namespace SmallStrainMechanics{
 template <typename TDomain>
 PrandtlReuss<TDomain>::PrandtlReuss():
 	IMaterialLaw<TDomain>(),
-	m_MaxHardIter(0.0), m_HardAccuracy(0.0), m_tangentAccur(1e-08),
+	m_MaxHardIter(100), m_HardAccuracy(0.0), m_tangentAccur(1e-08),
 	m_bHardModulus(false), m_bHardExp(false)
 {
 	// set default material constants
