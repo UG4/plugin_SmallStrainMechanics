@@ -145,7 +145,7 @@ elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU)
 	//	for formulation in reference config
 	StressTensor(stressT, GradU, strain_p_old_t, alpha);
 
-	for (size_t i = 0; i < (size_t) dim; ++i){
+	for (size_t i = 0; i < (size_t) dim; ++i)
 		for (size_t j = 0; j < (size_t) dim; ++j)
 		{
 			//TODO: introduce a help-variable for GradU, so GradU (passed parameter)
@@ -154,15 +154,12 @@ elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU)
 
 			StressTensor(stressTT, GradU, strain_p_old_t, alpha);
 
-			for (size_t k = 0; k < (size_t) dim; ++k){
-				for (size_t l = 0; l < (size_t) dim; ++l){
+			for (size_t k = 0; k < (size_t) dim; ++k)
+				for (size_t l = 0; l < (size_t) dim; ++l)
 					elastTens[i][j][k][l] = 1.0/ m_tangentAccur * (stressTT[k][l] - stressT[k][l]);
-				}
-			}
 
 			GradU[i][j] -= m_tangentAccur;
 		}
-	}
 
 	//	TODO: change this smart pointer to a member variable
 	//	do the same with m_GradU!
@@ -228,11 +225,9 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 	MatDeviatorTrace(strain, dev_strain);
 
 	MathMatrix<dim, dim> strial;
-	for(size_t i = 0; i < (size_t) dim; ++i){
-		for(size_t j = 0; j < (size_t) dim; ++j){
+	for(size_t i = 0; i < (size_t) dim; ++i)
+		for(size_t j = 0; j < (size_t) dim; ++j)
 			strial[i][j] = 2.0 * matConsts.mu * (dev_strain[i][j] - strain_p_old_t[i][j]);
-		}
-	}
 
 	number strialnorm = MatFrobeniusNorm(strial);
 	number flowcondtrial = strialnorm - sqrt(2.0 / 3.0) * Hardening(alpha);
@@ -292,14 +287,14 @@ Flowrule(MathMatrix<dim, dim>& strain_p_new, MathMatrix<dim, dim>& strain, numbe
 	MathMatrix<dim, dim> strain_trial;
 
 	//	compute linearized strain tensor (eps)
-	for(size_t i = 0; i < (size_t) dim; ++i){
+	for(size_t i = 0; i < (size_t) dim; ++i)
 		for(size_t j = 0; j < (size_t) dim; ++j)
 		{
 			strain[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
 			//	get eps_trial := eps_{n+1} - eps^p_{n}
 			strain_trial[i][j] = strain[i][j] - strain_p_old_t[i][j];
 		}
-	}
+
 	MathMatrix<dim, dim> dev_strain_trial;
 	MatDeviatorTrace(strain_trial, dev_strain_trial);
 
@@ -354,10 +349,11 @@ ConstLaw(MathMatrix<dim, dim>& stressTens, const MathMatrix<dim, dim>& strain, c
 	number trStrain = Trace(strain);
 
 	//	compute sigma = kappa * tr[eps] * id + strial - 2 * mu * gamma * normal
-	for(size_t i = 0; i < (size_t) dim; ++i){
-		for(size_t j = 0; j < (size_t) dim; ++j){
+	for(size_t i = 0; i < (size_t) dim; ++i)
+	{
+		for(size_t j = 0; j < (size_t) dim; ++j)
 			stressTens[i][j] = strial[i][j] - 2.0 * matConsts.mu * gamma * normal[i][j];
-		}
+
 		stressTens[i][i] += matConsts.kappa * trStrain;
 	}
 
@@ -432,10 +428,11 @@ MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev)
 	number trace = Trace(mat);
 
 	//	compute the deviatoric part of mat
-	for (size_t i = 0; i < (size_t) dim; ++i){
-		for (size_t j = 0; j < (size_t) dim; ++j){
+	for (size_t i = 0; i < (size_t) dim; ++i)
+	{
+		for (size_t j = 0; j < (size_t) dim; ++j)
 			dev[i][j] = mat[i][j];
-		}
+
 		dev[i][i] -= 1.0 / dim * trace;
 	}
 

@@ -24,19 +24,15 @@ DisplacementGradient(MathMatrix<dim, dim>& GradU, const size_t ip,
 	//	to compute local_grad(ip,i): \frac{\partial N_i}{\eps_ip}
 	//	and global_grad(ip,i): \frac{\partial N_i}{\X_ip}
 
-	for (size_t i = 0; i < (size_t) dim; ++i) {
+	for (size_t i = 0; i < (size_t) dim; ++i)
 		for (size_t J = 0; J < (size_t) dim; ++J)
 		{
 			GradU[i][J] = 0.0;
 
-			// loop shape-fcts
+			//	compute GradU: displacementGradient
 			for (size_t a = 0; a < geo.num_sh(); ++a)
-			{
-				//	compute GradU: displacementGradient
 				GradU[i][J] += geo.global_grad(ip, a)[J] * u(i, a);
-			}
 		}
-	}
 }
 
 }//	end of namespace SmallStrainMechanics

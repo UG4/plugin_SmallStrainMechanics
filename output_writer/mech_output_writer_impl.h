@@ -177,9 +177,9 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 		if ((coCoord[co][0] == 90.0) && (coCoord[co][1] == 0.0))
 		{
 			UG_LOG("At 2 (90.0,0.0): \n");
-			for (size_t i = 0; i < (size_t) dim; ++i) {
+			for (size_t i = 0; i < (size_t) dim; ++i)
 				UG_LOG("u("<< i << "," << co << "): " << locU(i,co) << "\n");
-			}
+
 			UG_LOG("\n");
 
 			vector<size_t> vNextIP;
@@ -203,18 +203,18 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 		if ((coCoord[co][0] == 100.0) && (coCoord[co][1] == 100.0))
 		{
 			UG_LOG("At 4 (100.0,100.0): \n");
-			for (size_t i = 0; i < (size_t) dim; ++i) {
+			for (size_t i = 0; i < (size_t) dim; ++i)
 				UG_LOG("u("<< i << "," << co << "): " << locU(i,co) << "\n");
-			}
+
 			UG_LOG("\n");
 		}
 
 		if ((coCoord[co][0] == 0.0) && (coCoord[co][1] == 100.0))
 		{
 			UG_LOG("At 5 (0.0,100.0): \n");
-			for (size_t i = 0; i < (size_t) dim; ++i) {
+			for (size_t i = 0; i < (size_t) dim; ++i)
 				UG_LOG("u("<< i << "," << co << "): " << locU(i,co) << "\n");
-			}
+
 			UG_LOG("\n");
 		}
 
@@ -248,18 +248,14 @@ post_timestep_elem(const number time, SmartPtr<TDomain> dom, TFEGeom& geo,
 	typedef typename TDomain::position_accessor_type position_accessor_type;
 	position_accessor_type& aaPos = dom->position_accessor();
 
-	if (m_stressEV && (!m_bIP_values_written)){
-		if (ContainsPoint(elem, m_evalPointEV, aaPos)){
+	if (m_stressEV && (!m_bIP_values_written))
+		if (ContainsPoint(elem, m_evalPointEV, aaPos))
 			stress_eigenvalues_near_point(time, geo, u);
-		}
-	}
 
 	//	COMPUTE NORMAL STRESSES OF THE STRESSTENSOR SIGMA AT IP
-	if (m_normalStress){
-		if (ContainsPoint(elem, m_evalPointNormStress, aaPos)){
+	if (m_normalStress)
+		if (ContainsPoint(elem, m_evalPointNormStress, aaPos))
 			normal_stress_near_point(time, geo, u);
-		}
-	}
 }
 
 template<typename TDomain>
@@ -399,10 +395,11 @@ MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev)
 	number trace = Trace(mat);
 
 	//	compute the deviatoric part of mat
-	for (size_t i = 0; i < (size_t) dim; ++i){
-		for (size_t j = 0; j < (size_t) dim; ++j){
+	for (size_t i = 0; i < (size_t) dim; ++i)
+	{
+		for (size_t j = 0; j < (size_t) dim; ++j)
 			dev[i][j] = mat[i][j];
-		}
+
 		dev[i][i] -= 1.0 / dim * trace;
 	}
 

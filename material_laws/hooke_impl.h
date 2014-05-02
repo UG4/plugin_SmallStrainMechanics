@@ -51,20 +51,18 @@ stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
 	strainTensor(strainTens, GradU);
 
 	//	TODO: replace this with general implementation of TensContractMat
-	for(size_t i = 0; i < (size_t) dim; ++i){
+	for(size_t i = 0; i < (size_t) dim; ++i)
 		for(size_t j = 0; j < (size_t) dim; ++j)
 		{
 			stressTens[i][j] = 0.0;
 
-			for(size_t k = 0; k < (size_t) dim; ++k){
+			for(size_t k = 0; k < (size_t) dim; ++k)
 				for(size_t l = 0; l < (size_t) dim; ++l)
-				{
 					stressTens[i][j] += (*m_spElastTensorFunct)[i][j][k][l]
 					                     * strainTens[k][l];
-				}
-			}
+
 		}
-	}
+
 }
 
 template <typename TDomain>
@@ -104,16 +102,12 @@ const number C11, const number C12, const number C13,
 	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
 
 	//  setze alle wWerte auf 0
-	for (size_t i = 0; i < (size_t) dim; ++i){
-		for (size_t j = 0; j < (size_t) dim; ++j){
-			for (size_t k = 0; k < (size_t) dim; ++k){
+	for (size_t i = 0; i < (size_t) dim; ++i)
+		for (size_t j = 0; j < (size_t) dim; ++j)
+			for (size_t k = 0; k < (size_t) dim; ++k)
 				for (size_t l = 0; l < (size_t) dim; ++l)
-				{
 					elastTensorFunct[i][j][k][l] = 0.0;
-				} //end (l)
-			} //end (k)
-		} //end (j)
-	} //end (i)
+
 
 	// Tensor mit Werte fuellen
 	//                 i  j  k  l
@@ -215,28 +209,23 @@ set_hooke_elasticity_tensor(const number lambda, const number mu)
 	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
 
 	//  filling the constant elasticity tensor
-	for (size_t i = 0; i < (size_t) dim; ++i){
-		for (size_t j = 0; j < (size_t) dim; ++j){
-			for (size_t k = 0; k < (size_t) dim; ++k){
+	for (size_t i = 0; i < (size_t) dim; ++i)
+		for (size_t j = 0; j < (size_t) dim; ++j)
+			for (size_t k = 0; k < (size_t) dim; ++k)
 				for (size_t l = 0; l < (size_t) dim; ++l)
 				{
 					elastTensorFunct[i][j][k][l] = 0.0;
 
-					if ((i == j) && (k == l)) {
+					if ((i == j) && (k == l))
 						elastTensorFunct[i][j][k][l] += lambda;
-					}
 
-					if ((i == k) && (j == l)) {
+					if ((i == k) && (j == l))
 						elastTensorFunct[i][j][k][l] +=  mu;
-					}
 
-					if ((i == l) && (j == k)) {
+					if ((i == l) && (j == k))
 						elastTensorFunct[i][j][k][l] +=  mu;
-					}
+
 				} //end (l)
-			} //end (k)
-		} //end (j)
-	} //end (i)
 
 	//	remembering the elasticity tensor
 	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));

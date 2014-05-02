@@ -300,31 +300,28 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 		m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
 
 		// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
-		for (size_t a = 0; a < geo.num_sh(); ++a){ 				// loop shape functions
-			for (size_t i = 0; i < (size_t) TDomain::dim; ++i){ // loop component
-				for (size_t b = 0; b < geo.num_sh(); ++b){ 		// shape functions
+		for (size_t a = 0; a < geo.num_sh(); ++a) 				// loop shape functions
+			for (size_t i = 0; i < (size_t) TDomain::dim; ++i) // loop component
+				for (size_t b = 0; b < geo.num_sh(); ++b) 		// shape functions
 					for (size_t j = 0; j < (size_t) TDomain::dim; ++j) // loop component
 					{
 						number integrandC = 0.0;
 
 						// Du:C:Dv = Du:sigma = sigma:Dv
-						for (size_t K = 0; K < (size_t) dim; ++K){
+						for (size_t K = 0; K < (size_t) dim; ++K)
 							for (size_t L = 0; L < (size_t) dim; ++L)
 							{
 								integrandC += geo.global_grad(ip, a)[K]
 										* (*m_spElastTensor)[i][K][j][L]
 										* geo.global_grad(ip, b)[L];
 							}
-						}
 
 						J(i, a, j, b) += integrandC * geo.weight(ip);
 
 						// Du:p*Id = p*Id:Dv goes here..
 
 					} //end (j)
-				} //end (b)
-			} //end(i)
-		} //end(a)
+
 	} //end(ip)
 }
 
@@ -340,19 +337,17 @@ add_jac_M_elem(LocalMatrix& J, const LocalVector& u,
 		//	request geometry
 		const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
-		for(size_t ip = 0; ip < geo.num_ip(); ++ip){
-			for(size_t i = 0; i < geo.num_sh(); ++i){
+		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+			for(size_t i = 0; i < geo.num_sh(); ++i)
 				for(size_t j = 0; j < geo.num_sh(); ++j)
 				{
 					// same value for all components
 					number value = geo.shape(ip, i) * geo.shape(ip, j) * geo.weight(ip);
 
-					for(size_t c = 0; c < (size_t)dim; ++c){
+					for(size_t c = 0; c < (size_t)dim; ++c)
 						J(c, i, c, j) += value;
-					}
+
 				}
-			}
-		}
 	}
 }
 
@@ -429,19 +424,18 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
 		m_spMatLaw->stressTensor(sigma, ip, GradU);
 
-		for (size_t a = 0; a < geo.num_sh(); ++a){ // loop shape functions
+		for (size_t a = 0; a < geo.num_sh(); ++a) // loop shape functions
 			for (size_t i = 0; i < num_fct(); ++i) // loop components
 			{
 				number innerForcesIP = 0.0;
 
 				//	i-th comp. of INTERNAL FORCES at node a:
-				for (size_t J = 0; J < (size_t) dim; ++J){
+				for (size_t J = 0; J < (size_t) dim; ++J)
 					innerForcesIP += sigma[i][J] * geo.global_grad(ip, a)[J];
-				}
 
 				d(i, a) += geo.weight(ip) * innerForcesIP;
 			} //end (i)
-		} //end (a)
+
 	}//end (ip)
 
 }
@@ -466,13 +460,11 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 	//	request geometry
 	 const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
-	 for(size_t ip = 0; ip < geo.num_ip(); ++ip){ 	// loop ip
-		 for(size_t a = 0; a < geo.num_sh(); ++a){	// loop shape functions
-			 for(size_t i = 0; i < num_fct(); ++i){ // loop component
+	 for(size_t ip = 0; ip < geo.num_ip(); ++ip) 	// loop ip
+		 for(size_t a = 0; a < geo.num_sh(); ++a)	// loop shape functions
+			 for(size_t i = 0; i < num_fct(); ++i)	// loop component
 				 d(i,a) += m_imVolForce[ip][i] * geo.shape(ip, a) * geo.weight(ip);
-			 }
-		 }
-	}
+
 }
 
 
