@@ -130,13 +130,15 @@ stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
 template <typename TDomain>
 SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
 PrandtlReuss<TDomain>::
-elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU)
+elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU_const)
 {
 	PRANDTL_REUSS_PROFILE_BEGIN(PrandtlReuss_elasticityTensor);
 
 	//	get internal variables
 	MathMatrix<dim, dim>& strain_p_old_t = m_pElemData->internalVars[ip].strain_p_old_t;
 	number alpha = m_pElemData->internalVars[ip].alpha;
+
+	MathMatrix<dim,dim>& GradU = const_cast<MathMatrix<dim,dim>&>(GradU_const);
 
 	//	computes the elasticity Tensor by means of numerical differentiation
 	MathTensor4<dim,dim,dim,dim> elastTens;
@@ -148,8 +150,6 @@ elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU)
 	for (size_t i = 0; i < (size_t) dim; ++i)
 		for (size_t j = 0; j < (size_t) dim; ++j)
 		{
-			//TODO: introduce a help-variable for GradU, so GradU (passed parameter)
-			//	could be const again!
 			GradU[i][j] += m_tangentAccur;
 
 			StressTensor(stressTT, GradU, strain_p_old_t, alpha);

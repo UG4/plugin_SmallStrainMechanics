@@ -65,7 +65,7 @@ class HookeLaw
 
 	///	computes the elasticity tensor; commonly denoted by C
 		inline SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
-			elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU);
+			elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU);
 
 	public:
 	///	set elasticity tensor for orthotropic materials

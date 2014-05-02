@@ -112,7 +112,7 @@ class PrandtlReuss
 
 	///	computes the elasticity tensor; commonly denoted by C
 		SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
-			elasticityTensor(const size_t ip, MathMatrix<dim, dim>& GradU);
+			elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU);
 
 		virtual bool needs_to_add_jac_m(){return false;}
 
