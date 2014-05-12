@@ -387,24 +387,6 @@ next_ips_to_point(vector<size_t>& vNextIP, const MathVector<dim>& point,
 	}
 }
 
-template<typename TDomain>
-number
-MechOutputWriter<TDomain>::
-MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev)
-{
-	number trace = Trace(mat);
-
-	//	compute the deviatoric part of mat
-	for (size_t i = 0; i < (size_t) dim; ++i)
-	{
-		for (size_t j = 0; j < (size_t) dim; ++j)
-			dev[i][j] = mat[i][j];
-
-		dev[i][i] -= 1.0 / dim * trace;
-	}
-
-	return trace;
-}
 
 } // namespace SmallStrainMechanics
 } // namespace ug

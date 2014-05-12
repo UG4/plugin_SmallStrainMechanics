@@ -93,8 +93,6 @@ class MechOutputWriter
 		void normal_stress_near_point(const number time,
 				TFEGeom& geo, const LocalVector& u);
 
-		//	TODO: replace this with a common-implementation
-		number MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev);
 	private:
 	///	material law
 		SmartPtr<IMaterialLaw<TDomain> > m_spMatLaw;

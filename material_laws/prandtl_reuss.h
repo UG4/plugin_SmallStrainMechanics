@@ -174,10 +174,6 @@ class PrandtlReuss
 				const MathMatrix<dim, dim>& GradU,
 				const MathMatrix<dim, dim>& strain_p_old_t);
 
-		//TODO: move this to common/math
-	///	get trace and deviatoric part of a matrix
-		number MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev);
-
 	private:
 	/// attached ElemData
 		struct InternalVars {

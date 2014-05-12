@@ -420,24 +420,6 @@ ExponentialHardening(const number strialnorm, const number alpha)
 	return gamma;
 }
 
-template<typename TDomain>
-number
-PrandtlReuss<TDomain>::
-MatDeviatorTrace(const MathMatrix<dim, dim>& mat, MathMatrix<dim, dim>& dev)
-{
-	number trace = Trace(mat);
-
-	//	compute the deviatoric part of mat
-	for (size_t i = 0; i < (size_t) dim; ++i)
-	{
-		for (size_t j = 0; j < (size_t) dim; ++j)
-			dev[i][j] = mat[i][j];
-
-		dev[i][i] -= 1.0 / dim * trace;
-	}
-
-	return trace;
-}
 
 }//	end of namespace SmallStrainMechanics
 }//	end of namespace ug
