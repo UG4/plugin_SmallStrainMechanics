@@ -345,8 +345,11 @@ add_jac_M_elem(LocalMatrix& J, const LocalVector& u,
 					number value = geo.shape(ip, i) * geo.shape(ip, j) * geo.weight(ip);
 
 					for(size_t c = 0; c < (size_t)dim; ++c)
-						J(c, i, c, j) += value;
 
+					{
+						//	J(c, i, c, j) += value;
+
+					}
 				}
 	}
 }
@@ -359,64 +362,11 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechAddDefA);
-	//if (0){
-		//	request geometry
-	/*	static const typename TGeomProvider::Type& geo = TGeomProvider::get();
-
-
-		for (size_t ip = 0; ip < geo.num_ip(); ++ip)
-		{
-			MathMatrix<dim, dim> sigma, GradU, eps;
-
-			//	compute cauchy-stress tensor sigma at a ip
-			DisplacementGradient<TGeomProvider>(GradU, geo, u, ip);
-
-			for(size_t i = 0; i < (size_t)dim; ++i){
-				for(size_t j = 0; j < (size_t)dim; ++j){
-					eps[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
-				}
-			}
-
-			// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
-			for (size_t a = 0; a < geo.num_sh(); ++a){ // loop shape functions
-				for (size_t i = 0; i < (size_t) TDomain::dim; ++i){ // loop component
-					for (size_t b = 0; b < geo.num_sh(); ++b){ // shape functions
-						for (size_t j = 0; j < (size_t) TDomain::dim; ++j) // loop component
-						{
-							number integrandC = 0.0;
-
-									// Du:C:Dv = Du:sigma = sigma_Dv
-									for (size_t K = 0; K < (size_t) dim; ++K){
-										for (size_t L = 0; L < (size_t) dim; ++L)
-										{
-											integrandC += geo.global_grad(ip, a)[K]
-													// * myTensor[i][K][j][L]
-													* geo.global_grad(ip, b)[L];
-										}
-									}
-
-									J(i, a, j, b) += integrandC * geo.weight(ip);
-								} //end (j)
-							} //end (b)
-						} //end(i)
-					} //end(a)
-		}
-
-		// p* div (v_i)
-		for (size_t a = 0; a < geo.num_sh(); ++a)
-		{ // loop shapes
-			for (size_t i = 0; i < num_fct(); ++i)
-			{
-
-				d(i, a) += geo.weight(ip)*0.0;
-			}
-
-		}*/
-	//}
 
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
+	// a) Cauchy tensor
 	MathMatrix<dim, dim> sigma, GradU;
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
@@ -424,19 +374,33 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
 		m_spMatLaw->stressTensor(sigma, ip, GradU);
 
-		for (size_t a = 0; a < geo.num_sh(); ++a) // loop shape functions
+		for (size_t sh = 0; sh < geo.num_sh(); ++sh) // loop shape functions
 			for (size_t i = 0; i < num_fct(); ++i) // loop components
 			{
 				number innerForcesIP = 0.0;
 
 				//	i-th comp. of INTERNAL FORCES at node a:
 				for (size_t J = 0; J < (size_t) dim; ++J)
-					innerForcesIP += sigma[i][J] * geo.global_grad(ip, a)[J];
+					innerForcesIP += sigma[i][J] * geo.global_grad(ip, sh)[J];
 
-				d(i, a) += geo.weight(ip) * innerForcesIP;
+				d(i, sh) += geo.weight(ip) * innerForcesIP;
 			} //end (i)
 
 	}//end (ip)
+
+/*
+	// b) pressure part: p div (V_ip)
+	if (m_imPressure.data_given()) {
+
+		for (size_t a = 0; a < geo.num_sh(); ++a) {// loop shape functions
+			for (size_t i = 0; i < num_fct(); ++i) // loop components
+			{
+				//d(i, a) += geo.weight(ip)*0.0;
+
+			} // end(i)
+		}// end (a)
+	} // pressure
+*/
 
 }
 
@@ -448,22 +412,49 @@ add_def_M_elem(LocalVector& d, const LocalVector& u,
 		GridObject* elem, const MathVector<dim> vCornerCoords[])
 {}
 
-//  assemble right-hand-side
+//  assemble right-hand-side d(i,sh)
 template<typename TDomain>
 template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
 add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoords[])
 {
-	// consider volume forces
-	if(!m_imVolForce.data_given()) return;
-
 	//	request geometry
-	 const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
-	 for(size_t ip = 0; ip < geo.num_ip(); ++ip) 	// loop ip
-		 for(size_t a = 0; a < geo.num_sh(); ++a)	// loop shape functions
-			 for(size_t i = 0; i < num_fct(); ++i)	// loop component
-				 d(i,a) += m_imVolForce[ip][i] * geo.shape(ip, a) * geo.weight(ip);
+	// a) volume forces: Phi * F = Phi * (grad p)
+	if(m_imVolForce.data_given()) {
+
+		//
+		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{ 	// loop ip
+			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+			{	// loop shape functions
+				for(size_t i = 0; i < num_fct(); ++i)
+				{ // loop component
+					d(i,sh) += geo.weight(ip) * geo.shape(ip, sh) * m_imVolForce[ip][i];
+				}
+			}
+		}
+	}
+
+	// b) scalar contribution: p * sum dx_i Phi_sh,i
+	if(m_imPressure.data_given()) {
+
+		for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+		{	// shape functions (sh=ux, uy, uz)
+			for(size_t i = 0; i < num_fct(); ++i)
+			{ //  component (i=1,2,3)
+				for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+				{ 	// loop ip
+					number divUip = geo.global_grad(ip, sh)[i];
+					d(i,sh) += geo.weight(ip)*divUip*m_imPressure[ip];
+				}
+			}
+		}
+	} // pressure data
+
+
+
 
 }
 
@@ -480,22 +471,23 @@ lin_def_pressure(const LocalVector& u,
 	//	request geometry
 	//static const typename TGeomProvider::Type& geo = TGeomProvider::get();
 	static const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
-	
+	UG_ASSERT(nip == geo.num_ip(), "Number of integration points does not match!");
 
-	//	loop integration points
-	for(size_t ip = 0; ip < geo.num_ip(); ++ip)
-	{
-		//	loop test spaces
-		for (size_t i = 0; i < num_fct(); ++i) { // loop component
-			for (size_t a = 0; a < geo.num_sh(); ++a) { // loop shape functions
-
-
+	for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+	{ // loop test spaces
+		for (size_t i = 0; i < num_fct(); ++i)
+		{ // loop component
+			//	loop integration points
+			for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+			{
+				vvvLinDef[ip][i][sh] = geo.weight(ip)*geo.global_grad(ip, sh)[i];
 			}
 		}
 	}
-}
 
+}
 //	computes the linearized defect w.r.t to the volume forces
+// $$ \frac{\partial d(u,I_1), ... d(u,I_n)}{\partial I_i} $$
 template<typename TDomain>
 template <typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
@@ -504,32 +496,34 @@ lin_def_volume_forces(const LocalVector& u,
 	                  const size_t nip)
 {
 	//	request geometry
-		//static const typename TGeomProvider::Type& geo = TGeomProvider::get();
-		static const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+	static const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+	UG_ASSERT(nip == geo.num_ip(), "Number of integration points does not match!");
 
 	//	loop integration points
-		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
-		{
+	for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+	{
+		for (size_t i = 0; i < num_fct(); ++i)
+		{ // loop component
 
-			for (size_t i = 0; i < num_fct(); ++i)
-			{ // loop component
+			// 	get ui at integration point
+			/*
+			 * number shape_ui = 0.0;
+			for(size_t a = 0; a < geo.num_sh(); ++a)
+				shape_ui += u(i,a) * geo.shape(ip, a);
+*/
+			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+			{ // loop test spaces
 
-				// 	get ui at integration point
-				number shape_ui = 0.0;
-				for(size_t a = 0; a < geo.num_sh(); ++a)
-					shape_ui += u(i,a) * geo.shape(ip, a);
-
-				for(size_t a = 0; a < geo.num_sh(); ++a)
-				 { //	loop test spaces
-
-					//	add to local defect
-//					geo.shape(ip, a) * geo.weight(ip);
-					VecScale(vvvLinDef[ip][i][a], geo.global_grad(ip, a),
-				         	 	 	 	 	 	 geo.weight(ip) * shape_ui);
-				}
+				//	add to local defect
+				//	geo.shape(ip, sh) * geo.weight(ip);
+				vvvLinDef[ip][i][sh] = 0.0;
+				(vvvLinDef[ip][i][sh])[i] = geo.weight(ip)*geo.shape(ip, sh);
+				/*VecScale(vvvLinDef[ip][i][sh], geo.global_grad(ip, sh),
+						geo.weight(ip) * shape_ui);*/
 			}
 		}
 	}
+}
 
 
 template<typename TDomain>
@@ -685,13 +679,16 @@ ex_displacement_fe(MathVector<dim> vValue[],
 			// loop shape-fcts & components
 			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 				for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-					uip[alpha] += u(alpha,sh)*geo.shape(ip, sh);
+					uip[alpha] += geo.weight(ip)*geo.shape(ip, sh)*u(alpha,sh);
 
 			if(bDeriv)
 			{
 				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-					{ vvvDeriv[ip][sh][alpha] = geo.shape(ip, sh); }
+					{
+						vvvDeriv[ip][alpha][sh] = 0.0;
+						vvvDeriv[ip][alpha][sh][alpha] = geo.weight(ip)*geo.shape(ip, sh);
+					}
 			}
 		}
 	}
@@ -708,7 +705,7 @@ ex_displacement_fe(MathVector<dim> vValue[],
 			//	number of shape functions
 			const size_t numSH = rTrialSpace.num_sh();
 
-			//	storage for shape function at ip
+			//	storage for values of shape functions at ip
 			std::vector<number> vShape(numSH);
 
 			//	loop ips
@@ -722,15 +719,19 @@ ex_displacement_fe(MathVector<dim> vValue[],
 				VecSet(uip, 0.0);
 
 				// loop shape-fcts & components
-				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
-					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-						uip[alpha] += u(alpha,sh)*geo.shape(ip, sh);
+				for(size_t sh = 0; sh < numSH; ++sh)
+					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha){
+						double uash = u(alpha,sh);
+						uip[alpha] += uash*vShape[sh];
+					}
+
 
 				if(bDeriv)
 				{
-					for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+					for(size_t sh = 0; sh < numSH; ++sh)
 						for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-						{ vvvDeriv[ip][alpha][sh] = geo.shape(ip, sh); }
+						{ vvvDeriv[ip][alpha][sh] = 0.0;
+							vvvDeriv[ip][alpha][sh][alpha] = vShape[sh]; }
 				}
 
 			}
@@ -780,12 +781,14 @@ ex_divergence_fe(number vValue[],
 			// loop shape-fcts & components
 			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 				for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-				{ divip += u(alpha,sh)*geo.global_grad(ip, sh)[alpha]; }
+				{ divip += geo.global_grad(ip, sh)[alpha]*u(alpha,sh); }
 
 			if(bDeriv){
 				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-					{ vvvDeriv[ip][alpha][sh] = geo.global_grad(ip, sh)[alpha];}
+					{
+						vvvDeriv[ip][alpha][sh] = geo.global_grad(ip, sh)[alpha];
+					}
 			}
 		}
 	}
@@ -801,27 +804,56 @@ ex_divergence_fe(number vValue[],
 			//	number of shape functions
 			const size_t numSH = rTrialSpace.num_sh();
 
-			//	storage for shape function at ip
-			std::vector<number> vShape(numSH);
+			//	storage for gradient function at ip
+			std::vector<MathVector<refDim> > vLocGrad(numSH);
+			MathVector<refDim> locGradA, globGradA;
+
+			//	Reference Mapping
+			MathMatrix<dim, refDim> JTInv;
+			ReferenceMapping<ref_elem_type, dim> mapping(vCornerCoords);
 
 			//	loop ips
 			for(size_t ip = 0; ip < nip; ++ip)
 			{
-				//	evaluate at shapes at ip
-				rTrialSpace.shapes(vShape, vLocIP[ip]);
-
+				// computing divergence:
 				number &divip=vValue[ip];
 				divip = 0.0;
 
-				// loop shape-fcts & components
-				for(size_t sh = 0; sh < numSH; ++sh)
-					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-					{ divip += u(alpha,sh)*geo.global_grad(ip, sh)[alpha]; }
+				//	evaluate shape gradients at ip
+				rTrialSpace.grads(vLocGrad, vLocIP[ip]);
+				mapping.jacobian_transposed_inverse(JTInv, vLocIP[ip]);
+
+
+				// loop components
+				for (size_t a = 0; a < (size_t) dim; ++a)
+				{
+					//	compute grad at ip
+					VecSet(locGradA, 0.0);
+					for(size_t sh = 0; sh < numSH; ++sh)
+					{
+						VecScaleAppend(locGradA, u(a, sh), vLocGrad[sh]);
+					}
+
+					//	compute global grad
+					MatVecMult(globGradA, JTInv, locGradA);
+
+					// contribution to divergence
+					divip += globGradA[a];
+
+				}
+
+
+
+
 
 				if(bDeriv){
+					assert(0);
 					for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 						for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-						{ vvvDeriv[ip][sh][alpha] = geo.global_grad(ip, sh)[alpha];}
+						{
+							vvvDeriv[ip][alpha][sh] /*= 0.0;
+							vvvDeriv[ip][alpha][sh][alpha] */= geo.global_grad(ip, sh)[alpha];
+						}
 				}
 			}
 
@@ -1004,13 +1036,13 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 	static const int refDim = reference_element_traits<TElem>::dim;
 
 	this->clear_add_fct(id);
-	this->set_prep_timestep_elem_fct(id,
-			&T::template prep_timestep_elem<TElem, TFEGeom>);
-	this->set_prep_elem_loop_fct(id,
-			&T::template prep_elem_loop<TElem, TFEGeom>);
+
+	this->set_prep_elem_loop_fct(id, &T::template prep_elem_loop<TElem, TFEGeom>);
 	this->set_prep_elem_fct(id, &T::template prep_elem<TElem, TFEGeom>);
-	this->set_fsh_elem_loop_fct(id,
-					&T::template fsh_elem_loop<TElem, TFEGeom>);
+	this->set_fsh_elem_loop_fct(id, &T::template fsh_elem_loop<TElem, TFEGeom>);
+
+	this->set_prep_timestep_elem_fct(id, &T::template prep_timestep_elem<TElem, TFEGeom>);
+	this->set_fsh_timestep_elem_fct(id, &T::template fsh_timestep_elem<TElem, TFEGeom>);
 
 	this->set_add_jac_A_elem_fct(id, &T::template add_jac_A_elem<TElem, TFEGeom>);
 	this->set_add_jac_M_elem_fct(id, &T::template add_jac_M_elem<TElem, TFEGeom>);
@@ -1018,14 +1050,11 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 	this->set_add_def_M_elem_fct(id, &T::template add_def_M_elem<TElem, TFEGeom>);
 	this->set_add_rhs_elem_fct(id, &T::template add_rhs_elem<TElem, TFEGeom>);
 
-	this->set_fsh_timestep_elem_fct(id,
-			&T::template fsh_timestep_elem<TElem, TFEGeom>);
-
-	//	set computation of linearized defect w.r.t velocity
+	// specify computation of linearized defect w.r.t imports
 	m_imVolForce.set_fct(id, this, &T::template lin_def_volume_forces<TElem, TFEGeom>);
 	m_imPressure.set_fct(id, this, &T::template lin_def_pressure<TElem, TFEGeom>);
 
-	//	exports
+	// exports
 	m_exDisplacement->  template set_fct<T,refDim>(id, this, &T::template ex_displacement_fe<TElem, TFEGeom>);
 	m_exDivergence->    template set_fct<T,refDim>(id, this, &T::template ex_divergence_fe<TElem, TFEGeom>);
 }
