@@ -58,6 +58,8 @@ class IMaterialLaw
 		virtual void internal_vars(TBaseElem* elem){};
 		virtual void update_internal_vars(const size_t ip, const MathMatrix<dim, dim>& GradU){};
 
+		virtual void write_data_to_console(const number t){};
+
 	public:
 		inline bool is_initialized(){return m_bInit;}
 
