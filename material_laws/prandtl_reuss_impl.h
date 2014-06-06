@@ -36,6 +36,8 @@ PrandtlReuss<TDomain>::PrandtlReuss():
 	matConsts.K_0 = 0.0; m_hardening = 0;
 	matConsts.K_inf = 0.0; matConsts.Hard = 0.0; matConsts.omega = 0.0;
 
+	m_max_k_tan = 0.0;
+
 	std::stringstream ss;
 	ss << "Prandtl Reuss Plasticity: \n";
 	m_materialConfiguration = ss.str();
@@ -160,6 +162,17 @@ elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU_const)
 
 			GradU[i][j] -= m_tangentAccur;
 		}
+
+	//	compute maximal relative error of numerical differentiation
+	//	(ref: Deuflhard Numerische Mathematik 1)
+	/*MathMatrix<dim, dim> diffStress;
+	MatSubtract(diffStress, stressTT, stressT);
+	if (MatFrobeniusNorm(stressT) > 0.0)
+	{
+		const number k_tan = MatFrobeniusNorm(diffStress)/MatFrobeniusNorm(stressT);
+		if (k_tan > m_max_k_tan)
+		m_max_k_tan = k_tan;
+	}*/
 
 	//	TODO: change this smart pointer to a member variable
 	//	do the same with m_GradU!
@@ -420,6 +433,13 @@ ExponentialHardening(const number strialnorm, const number alpha)
 	return gamma;
 }
 
+template <typename TDomain>
+void
+PrandtlReuss<TDomain>::
+write_data_to_console(const number t)
+{
+	UG_LOG("maximal k_tan:" << m_max_k_tan << "\n");
+}
 
 }//	end of namespace SmallStrainMechanics
 }//	end of namespace ug

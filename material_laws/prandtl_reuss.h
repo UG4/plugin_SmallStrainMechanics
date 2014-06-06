@@ -121,6 +121,8 @@ class PrandtlReuss
 		virtual void internal_vars(TBaseElem* elem);
 		virtual void update_internal_vars(const size_t ip, const MathMatrix<dim, dim>& GradU);
 
+		virtual void write_data_to_console(const number t);
+
 	///	use this method to make sure that all required attachments are attached
 	/**	This method won't be necessary if we attach m_aElemData during initialization.*/
 		virtual void attach_internal_vars(typename TDomain::grid_type& grid)
@@ -218,6 +220,9 @@ class PrandtlReuss
 	///	flags indicating if hardening variables are set
 		bool m_bHardModulus;
 		bool m_bHardExp;
+
+	///	max condition number for numerical approximated matrix
+		number m_max_k_tan;
 
 	public:
 		using base_type::m_materialConfiguration;
