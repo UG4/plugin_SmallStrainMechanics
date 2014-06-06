@@ -261,6 +261,15 @@ post_timestep_elem(const number time, SmartPtr<TDomain> dom, TFEGeom& geo,
 template<typename TDomain>
 void
 MechOutputWriter<TDomain>::
+post_timestep(const number time)
+{
+	//	write some material law data to console
+	m_spMatLaw->write_data_to_console(time);
+}
+
+template<typename TDomain>
+void
+MechOutputWriter<TDomain>::
 postprocess()
 {
 	/*if (m_stressEV)

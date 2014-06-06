@@ -182,6 +182,7 @@ static void Domain(Registry& reg, string grp)
 			.add_constructor()
 			.add_method("stress_eigenvalues_at", &T::stress_eigenvalues_at)
 			.add_method("normal_stresses_at", &T::normal_stresses_at)
+			.add_method("post_timestep", &T::post_timestep)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MechOutputWriter", tag);
    }

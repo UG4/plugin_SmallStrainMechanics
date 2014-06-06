@@ -69,7 +69,7 @@ class MechOutputWriter
 		void post_timestep_elem(const number time, SmartPtr<TDomain> dom,
 				TFEGeom& geo, TBaseElem* elem, const LocalVector& u);
 
-		void post_timestep(const number time){};
+		void post_timestep(const number time);
 		void postprocess();
 
 		void material_law(SmartPtr<IMaterialLaw<TDomain> > spMatLaw)
