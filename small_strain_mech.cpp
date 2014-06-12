@@ -454,8 +454,6 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 	} // pressure data
 
 
-
-
 }
 
 
@@ -653,7 +651,6 @@ ex_displacement_fe(MathVector<dim> vValue[],
 			bool bDeriv,
 			std::vector<std::vector<MathVector<dim> > > vvvDeriv[])
 {
-
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
@@ -679,7 +676,7 @@ ex_displacement_fe(MathVector<dim> vValue[],
 			// loop shape-fcts & components
 			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 				for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-					uip[alpha] += geo.weight(ip)*geo.shape(ip, sh)*u(alpha,sh);
+					uip[alpha] += geo.shape(ip, sh) * u(alpha,sh);
 
 			if(bDeriv)
 			{
@@ -687,7 +684,7 @@ ex_displacement_fe(MathVector<dim> vValue[],
 					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
 					{
 						vvvDeriv[ip][alpha][sh] = 0.0;
-						vvvDeriv[ip][alpha][sh][alpha] = geo.weight(ip)*geo.shape(ip, sh);
+						vvvDeriv[ip][alpha][sh][alpha] = geo.shape(ip, sh);
 					}
 			}
 		}
@@ -695,7 +692,6 @@ ex_displacement_fe(MathVector<dim> vValue[],
 	// 	general case
 	else
 	{
-
 		// 	general case
 		try{
 			//	request for trial space
@@ -714,7 +710,6 @@ ex_displacement_fe(MathVector<dim> vValue[],
 				//	evaluate at shapes at ip
 				rTrialSpace.shapes(vShape, vLocIP[ip]);
 
-
 				MathVector<dim> &uip=vValue[ip];
 				VecSet(uip, 0.0);
 
@@ -722,7 +717,7 @@ ex_displacement_fe(MathVector<dim> vValue[],
 				for(size_t sh = 0; sh < numSH; ++sh)
 					for (size_t alpha = 0; alpha < (size_t) dim; ++alpha){
 						double uash = u(alpha,sh);
-						uip[alpha] += uash*vShape[sh];
+						uip[alpha] += uash * vShape[sh];
 					}
 
 
@@ -755,7 +750,7 @@ ex_divergence_fe(number vValue[],
 						const size_t nip,
 						bool bDeriv,
 						std::vector<std::vector<number> > vvvDeriv[])
-						{
+{
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
@@ -781,7 +776,7 @@ ex_divergence_fe(number vValue[],
 			// loop shape-fcts & components
 			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 				for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
-				{ divip += geo.global_grad(ip, sh)[alpha]*u(alpha,sh); }
+				{ divip += geo.global_grad(ip, sh)[alpha] * u(alpha,sh); }
 
 			if(bDeriv){
 				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
@@ -841,10 +836,6 @@ ex_divergence_fe(number vValue[],
 					divip += globGradA[a];
 
 				}
-
-
-
-
 
 				if(bDeriv){
 					assert(0);
