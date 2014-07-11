@@ -291,13 +291,21 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
+	if (m_spMatLaw->elastTensIsConstant())
+	{
+		//	material law with constant elasticity tensors
+		m_spElastTensor = m_spMatLaw->elasticityTensor();
+	}
+
 	MathMatrix<dim, dim> GradU;
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
-		//	TODO: think about moving the call of 'DisplacementGradient',
-		//	since it is not used for Hooke`s linear elastic law!
-		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
-		m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
+		if (!(m_spMatLaw->elastTensIsConstant()))
+		{
+			//	material law with non constant elasticity tensors
+			m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
+			m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
+		}
 
 		// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
 		for (size_t a = 0; a < geo.num_sh(); ++a) 				// loop shape functions

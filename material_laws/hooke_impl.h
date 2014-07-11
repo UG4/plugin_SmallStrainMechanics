@@ -69,7 +69,7 @@ template <typename TDomain>
 inline
 SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
 HookeLaw<TDomain>::
-elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU)
+elasticityTensor()
 {
 	HOOKE_PROFILE_BEGIN(HookeLaw_elasticityTensor);
 	return m_spElastTensorFunct;

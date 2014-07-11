@@ -48,7 +48,10 @@ class HookeLaw
 
 	public:
 	///	constructor
-		HookeLaw(): IMaterialLaw<TDomain>(){};
+		HookeLaw(): IMaterialLaw<TDomain>()
+		{
+			base_type::m_bConstElastTens = true;
+		};
 
 	///	Destructor
 		~HookeLaw(){};
@@ -64,8 +67,13 @@ class HookeLaw
 				const MathMatrix<dim, dim>& GradU);
 
 	///	computes the elasticity tensor; commonly denoted by C
-		inline SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
-			elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU);
+		virtual inline SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
+				elasticityTensor();
+
+		virtual SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
+			elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU){
+			return elasticityTensor();};
+
 
 	public:
 	///	set elasticity tensor for orthotropic materials

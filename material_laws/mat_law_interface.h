@@ -26,7 +26,7 @@ class IMaterialLaw
 
 	public:
 	///	constructor
-		IMaterialLaw(): m_bInit(false){}
+		IMaterialLaw(): m_bInit(false), m_bConstElastTens(false){}
 
 	///	destructor
 		virtual ~IMaterialLaw(){};
@@ -44,6 +44,12 @@ class IMaterialLaw
 		//	computes the elasticity tensor at an integration point ip
 		virtual SmartPtr<MathTensor4<dim,dim,dim,dim> >
 			elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU) = 0;
+
+		//	computes the constant elasticity tensor
+		virtual SmartPtr<MathTensor4<dim,dim,dim,dim> > elasticityTensor(){
+			SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>());
+			return spElastTens;
+		};
 
 		virtual bool needs_to_add_jac_m(){return true;}
 
@@ -63,6 +69,8 @@ class IMaterialLaw
 	public:
 		inline bool is_initialized(){return m_bInit;}
 
+		inline bool elastTensIsConstant(){return m_bConstElastTens;}
+
 		template <typename TFEGeom>
 		void DisplacementGradient(MathMatrix<dim, dim>& GradU, const size_t ip,
 				const TFEGeom& geo, const LocalVector& u);
@@ -71,7 +79,11 @@ class IMaterialLaw
 		std::string m_materialConfiguration;
 
 	protected:
+	///	flag indicating, if material law has been initialized
 		bool m_bInit;
+
+	/// flag indicating, if elasticity tensor is constant
+		bool m_bConstElastTens;
 
 };
 

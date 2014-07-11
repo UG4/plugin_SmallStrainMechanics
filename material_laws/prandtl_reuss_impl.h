@@ -41,6 +41,8 @@ PrandtlReuss<TDomain>::PrandtlReuss():
 	std::stringstream ss;
 	ss << "Prandtl Reuss Plasticity: \n";
 	m_materialConfiguration = ss.str();
+
+	base_type::m_bConstElastTens = false;
 }
 
 template <typename TDomain>
