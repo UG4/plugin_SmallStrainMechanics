@@ -156,14 +156,6 @@ init_state_variables(const size_t order)
 {
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechInit_state_variables);
 
-/*#ifdef UG_PARALLEL
-	if (pcl::ProcRank() == 0){
-		m_testFile = fopen("sig_eigen.dat", "w");
-	}
-#else
-	m_testFile = fopen("sig_eigen.dat", "w");
-#endif*/
-
 	//	TODO: is this necessary here???? Or do I only need num_ip?
 	m_order = order;
 	m_lfeID = LFEID(LFEID::LAGRANGE, dim, order);
