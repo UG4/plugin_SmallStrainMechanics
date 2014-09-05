@@ -141,8 +141,7 @@ static void Domain(Registry& reg, string grp)
 			.add_constructor()
 			.add_method("set_elasticity_tensor_orthotropic", &T::set_elasticity_tensor_orthotropic,
 					"", "C11#C12#C13#C22#C23#C33#C44#C55#C66")
-			.add_method("set_elasticity_tensor_orthotropic2d", &T::set_elasticity_tensor_orthotropic2d,
-						"", "C11#C12#C22#C33")
+			//.add_method("set_elasticity_tensor_orthotropic2d", &T::set_elasticity_tensor_orthotropic2d, "", "C11#C12#C22#C33")
 			.add_method("set_hooke_elasticity_tensor", &T::set_hooke_elasticity_tensor,
 					"", "lambda#mu")
 			.add_method("set_hooke_elasticity_tensor_E_nu", &T::set_hooke_elasticity_tensor_E_nu,
