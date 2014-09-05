@@ -347,7 +347,7 @@ add_jac_M_elem(LocalMatrix& J, const LocalVector& u,
 					for(size_t c = 0; c < (size_t)dim; ++c)
 
 					{
-						//	J(c, i, c, j) += value;
+						J(c, i, c, j) += value*m_massScale;
 
 					}
 				}
@@ -610,6 +610,7 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 	m_order = 1;
 	m_bQuadOrderUserDef = false;
 	m_quadOrder = -1;
+	m_massScale = 1.0;
 
 	//	update assemble functions
 	set_assemble_funcs();

@@ -129,6 +129,8 @@ class SmallStrainMechanicsElemDisc
 	///	sets the quad order
 		void set_quad_order(const size_t order) {m_quadOrder = order; m_bQuadOrderUserDef = true;}
 
+		void set_mass_scale(double val) { m_massScale = val; }
+
 	///	initialize state/"inner" variables
 		void init_state_variables(const size_t order);
 
@@ -176,12 +178,15 @@ class SmallStrainMechanicsElemDisc
 			if(dim == 2)
 				ss << " [Plain Strain / Ebener Verzerrungszustand]";
 			ss << "\n";
-			ss << " order of disc scheme = " << m_order << "\n";
-			ss << " shape function set " << m_lfeID << "\n";
+			ss << " order of disc scheme = " << m_order
+					<< ", shape function set " << m_lfeID
+					<< ", Mass Scale = " << m_massScale
+					<< "\n";
 			if(m_bQuadOrderUserDef)
 				ss << " User Defined Quad Order = " << m_quadOrder << "\n";
 
 			ss << " Material Configuration: " << ConfigShift(m_spMatLaw->m_materialConfiguration) << "\n";
+
 			return ss.str();
 		}
 
@@ -276,6 +281,8 @@ class SmallStrainMechanicsElemDisc
 	///	current integration order
 		bool m_bQuadOrderUserDef;
 		int m_quadOrder;
+
+		double m_massScale;
 
 	///	data import for volume forces
 		DataImport<MathVector<dim>, dim > m_imVolForce;

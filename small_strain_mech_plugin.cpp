@@ -17,6 +17,7 @@
 #include "material_laws/hooke.h"
 #include "material_laws/prandtl_reuss.h"
 #include "material_laws/mat_law_interface.h"
+#include "bridge/util_overloaded.h"
 
 using namespace std;
 using namespace ug::bridge;
@@ -99,18 +100,19 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_output_writer", &T::set_output_writer, "", "set output writer")
 			.add_method("set_quad_order", &T::set_quad_order, "", "order")
 
-			.add_method("set_volume_forces", static_cast<void (T::*)(SmartPtr<CplUserData<MathVector<dim>, dim> >)>(&T::set_volume_forces),"", "Force field")
-			.add_method("set_volume_forces", static_cast<void (T::*)(number)>(&T::set_volume_forces), "", "F")
-			.add_method("set_volume_forces", static_cast<void (T::*)(number,number)>(&T::set_volume_forces), "", "F_x, F_y")
-			.add_method("set_volume_forces", static_cast<void (T::*)(number,number,number)>(&T::set_volume_forces), "", "F_x, F_y, F_z")
-#ifdef UG_FOR_LUA
-			.add_method("set_volume_forces", static_cast<void (T::*)(const char*)>(&T::set_volume_forces), "", "Force field")
-#endif
+			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (SmartPtr<CplUserData<MathVector<dim>, dim> >) ) ,"", "Force field")
+			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number)), "", "F")
+			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number, number)), "", "F_x, F_y")
+			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number, number, number)), "", "F_x, F_y, F_z")
 
-			.add_method("set_pressure", static_cast<void (T::*)(SmartPtr<CplUserData<number, dim> >)>(&T::set_pressure), "", "Pressure")
-			.add_method("set_pressure", static_cast<void (T::*)(number)>(&T::set_pressure), "", "Pressure")
+			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (SmartPtr<CplUserData<number, dim> >)), "", "Pressure")
+			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (number)), "", "Pressure")
+
+			.add_method("set_mass_scale", &T::set_mass_scale, "", "massScale")
+
 #ifdef UG_FOR_LUA
-			.add_method("set_pressure", static_cast<void (T::*)(const char*)>(&T::set_pressure), "", "Pressure")
+			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (const char*)) , "", "Force field")
+			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (const char*)), "", "Pressure")
 #endif
 
 			.add_method("displacement", &T::displacement)
@@ -139,6 +141,8 @@ static void Domain(Registry& reg, string grp)
 			.add_constructor()
 			.add_method("set_elasticity_tensor_orthotropic", &T::set_elasticity_tensor_orthotropic,
 					"", "C11#C12#C13#C22#C23#C33#C44#C55#C66")
+			.add_method("set_elasticity_tensor_orthotropic2d", &T::set_elasticity_tensor_orthotropic2d,
+						"", "C11#C12#C22#C33")
 			.add_method("set_hooke_elasticity_tensor", &T::set_hooke_elasticity_tensor,
 					"", "lambda#mu")
 			.add_method("set_hooke_elasticity_tensor_E_nu", &T::set_hooke_elasticity_tensor_E_nu,
