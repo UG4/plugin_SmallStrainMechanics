@@ -208,7 +208,7 @@ class SmallStrainMechanicsElemDisc
 		void prep_elem_loop(const ReferenceObjectID roid, const int si);
 
 		template<typename TElem, typename TFEGeom>
-		void prep_elem(const LocalVector& u, GridObject* elem, const MathVector<dim> vCornerCoords[]);
+		void prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, const MathVector<dim> vCornerCoords[]);
 
 		template<typename TElem, typename TFEGeom>
 		void fsh_elem_loop();
