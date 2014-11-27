@@ -223,6 +223,7 @@ class PrandtlReuss
 
 	///	max condition number for numerical approximated matrix
 		number m_max_k_tan;
+		size_t m_plasticIPs;
 
 	public:
 		using base_type::m_materialConfiguration;

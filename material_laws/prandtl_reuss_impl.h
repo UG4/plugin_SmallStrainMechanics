@@ -37,6 +37,7 @@ PrandtlReuss<TDomain>::PrandtlReuss():
 	matConsts.K_inf = 0.0; matConsts.Hard = 0.0; matConsts.omega = 0.0;
 
 	m_max_k_tan = 0.0;
+	m_plasticIPs = 0;
 
 	std::stringstream ss;
 	ss << "Prandtl Reuss Plasticity: \n";
@@ -167,14 +168,14 @@ elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU_const)
 
 	//	compute maximal relative error of numerical differentiation
 	//	(ref: Deuflhard Numerische Mathematik 1)
-	/*MathMatrix<dim, dim> diffStress;
+	MathMatrix<dim, dim> diffStress;
 	MatSubtract(diffStress, stressTT, stressT);
 	if (MatFrobeniusNorm(stressT) > 0.0)
 	{
 		const number k_tan = MatFrobeniusNorm(diffStress)/MatFrobeniusNorm(stressT);
 		if (k_tan > m_max_k_tan)
 		m_max_k_tan = k_tan;
-	}*/
+	}
 
 	//	TODO: change this smart pointer to a member variable
 	//	do the same with m_GradU!
@@ -250,6 +251,8 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 	if (flowcondtrial <= 0){
 		strain_p_new = strain_p_old_t; return;
 	}
+
+	m_plasticIPs += 1;
 
 	number gamma = 0.0;
 
@@ -441,6 +444,11 @@ PrandtlReuss<TDomain>::
 write_data_to_console(const number t)
 {
 	UG_LOG("maximal k_tan:" << m_max_k_tan << "\n");
+
+	//  print: at how many gauss points we are in the plastic zone,...
+	UG_LOG("# of plastic IPs in this timestep:" << m_plasticIPs << "\n");
+	//	reset data
+	m_plasticIPs = 0;
 }
 
 }//	end of namespace SmallStrainMechanics
