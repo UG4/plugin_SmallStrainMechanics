@@ -37,6 +37,7 @@ PrandtlReuss<TDomain>::PrandtlReuss():
 	matConsts.K_inf = 0.0; matConsts.Hard = 0.0; matConsts.omega = 0.0;
 
 	m_max_k_tan = 0.0;
+	m_min_k_tan = 100.0;
 	m_plasticIPs = 0;
 
 	std::stringstream ss;
@@ -174,7 +175,9 @@ elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU_const)
 	{
 		const number k_tan = MatFrobeniusNorm(diffStress)/MatFrobeniusNorm(stressT);
 		if (k_tan > m_max_k_tan)
-		m_max_k_tan = k_tan;
+			m_max_k_tan = k_tan;
+		if (k_tan < m_min_k_tan)
+			m_min_k_tan = k_tan;
 	}
 
 	//	TODO: change this smart pointer to a member variable
@@ -444,6 +447,7 @@ PrandtlReuss<TDomain>::
 write_data_to_console(const number t)
 {
 	UG_LOG("maximal k_tan:" << m_max_k_tan << "\n");
+	UG_LOG("minimal k_tan:" << m_min_k_tan << "\n");
 
 	//  print: at how many gauss points we are in the plastic zone,...
 	UG_LOG("# of plastic IPs in this timestep:" << m_plasticIPs << "\n");
