@@ -103,10 +103,10 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 	m_spMatLaw->internal_vars(elem);
 
 	MathMatrix<dim, dim> GradU, eps, sigma, devSigma, SumEpsIP, SumSigmaIP;
-	number normDevSig, SumNormDevSigIP;
+	number normDevSig, normSig, normEps, SumNormDevSigIP, SumNormSigIP, SumNormEpsIP;
 
 	//	init summation-values
-	SumEpsIP = 0.0; SumSigmaIP = 0.0; SumNormDevSigIP = 0.0;
+	SumEpsIP = 0.0; SumSigmaIP = 0.0; SumNormDevSigIP = 0.0; SumNormSigIP = 0.0; SumNormEpsIP = 0.0;
 
 	for(size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
@@ -123,6 +123,8 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 		//	get norm of deviator of sigma
 		MatDeviatorTrace(sigma, devSigma);
 		normDevSig = MatFrobeniusNorm(devSigma);
+		normSig = MatFrobeniusNorm(sigma);
+		normEps = MatFrobeniusNorm(eps);
 
 		//	add values to local vector
 		for (size_t i = 0; i < (size_t) dim; ++i)
@@ -131,6 +133,8 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 			SumSigmaIP[i][i] += sigma[i][i];
 		}
 		SumNormDevSigIP += normDevSig;
+		SumNormSigIP += normSig;
+		SumNormEpsIP += normEps;
 
 	} //end (ip)
 
@@ -168,6 +172,8 @@ normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
 			locSigma(i, co) += SumSigmaIP[i][i] / scaleFac;
 		}
 		locDevSigma(0, co) += SumNormDevSigIP / scaleFac;
+		locDevSigma(1, co) += SumNormSigIP / scaleFac;
+		locDevSigma(2, co) += SumNormEpsIP / scaleFac;
 	} //end(co)
 
 
