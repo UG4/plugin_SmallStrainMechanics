@@ -123,6 +123,17 @@ class PrandtlReuss
 
 		virtual void write_data_to_console(const number t);
 
+
+		virtual SmartPtr<MathMatrix<dim, dim> > inelastic_strain_tensor(const size_t ip){
+			MathMatrix<dim, dim>& inelastStrain = m_pElemData->internalVars[ip].strain_p_old_t;
+			SmartPtr<MathMatrix<dim, dim> > spInelasticStrain (new MathMatrix<dim, dim>(inelastStrain));
+			return spInelasticStrain;
+		}
+		virtual number hardening_parameter(const size_t ip){
+			return m_pElemData->internalVars[ip].alpha;
+		}
+		virtual number plastic_multiplier(const size_t ip, const MathMatrix<dim, dim>& GradU);
+
 	///	use this method to make sure that all required attachments are attached
 	/**	This method won't be necessary if we attach m_aElemData during initialization.*/
 		virtual void attach_internal_vars(typename TDomain::grid_type& grid)

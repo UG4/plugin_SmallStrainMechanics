@@ -66,6 +66,17 @@ class IMaterialLaw
 
 		virtual void write_data_to_console(const number t){};
 
+
+		virtual SmartPtr<MathMatrix<dim, dim> > inelastic_strain_tensor(const size_t ip)
+		{
+			MathMatrix<dim, dim> inelastStrain; inelastStrain = 0;
+			SmartPtr<MathMatrix<dim, dim> > spInelasticStrain (new MathMatrix<dim, dim>(inelastStrain));
+			return spInelasticStrain;
+		}
+		virtual number hardening_parameter(const size_t ip){return 0.0;}
+		virtual number plastic_multiplier(const size_t ip, const MathMatrix<dim, dim>& GradU)
+			{return 0.0;}
+
 	public:
 		inline bool is_initialized(){return m_bInit;}
 

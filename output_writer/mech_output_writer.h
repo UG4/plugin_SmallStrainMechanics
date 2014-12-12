@@ -77,8 +77,14 @@ class MechOutputWriter
 		void quad_order(const int quadOrder)
 			{m_quadOrder = quadOrder;}
 
-		void normal_stress_strain_loc(LocalVector& locDevSigma, LocalVector& locSigma,
-			LocalVector& locEps, TBaseElem* elem, const LocalVector& locU, SmartPtr<TDomain> dom);
+		void plastIP_elem(LocalVector& locPlastIP, TBaseElem* elem,
+				const LocalVector& locU, SmartPtr<TDomain> dom);
+
+		void eqPlastStrain_elem(LocalVector& locEqPlastStrain, TBaseElem* elem, const LocalVector& locU,
+				SmartPtr<TDomain> dom);
+
+		void normal_stress_strain_elem(LocalVector& locSigma, LocalVector& locEps, LocalVector& locStressFunc,
+				LocalVector& locStrainFunc, TBaseElem* elem, const LocalVector& locU, SmartPtr<TDomain> dom);
 
 	private:
 		template<typename TFEGeom>
@@ -120,8 +126,18 @@ class MechOutputWriter
 
 template<typename TGridFunction>
 void normal_stresses_strains(MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
-		TGridFunction& devSigma, TGridFunction& sigma,
-		TGridFunction& epsilon, TGridFunction& u);
+		TGridFunction& sigma, TGridFunction& epsilon, TGridFunction& stressFunc,
+		TGridFunction& strainFunc, TGridFunction& u);
+
+template <typename TGridFunction>
+void plast_ip(TGridFunction& plastIP,
+		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
+		TGridFunction& u);
+
+template <typename TGridFunction>
+void equiv_plast_strain(TGridFunction& eqPlastStrain,
+		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
+		TGridFunction& u);
 
 // end group small_strain_mechanics
 /// \}

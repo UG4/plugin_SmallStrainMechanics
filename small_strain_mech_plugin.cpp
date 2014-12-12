@@ -69,7 +69,10 @@ static void DomainAlgebra(Registry& reg, string grp)
 //	functionality for output
 	reg.add_function("normal_stresses_strains",
 					&normal_stresses_strains<function_type>, grp);
-
+	reg.add_function("plast_ip",
+					&plast_ip<function_type>, grp);
+	reg.add_function("equiv_plast_strain",
+					&equiv_plast_strain<function_type>, grp);
 }
 
 /**

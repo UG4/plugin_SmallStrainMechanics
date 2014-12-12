@@ -381,6 +381,71 @@ ConstLaw(MathMatrix<dim, dim>& stressTens, const MathMatrix<dim, dim>& strain, c
 }
 
 template <typename TDomain>
+number
+PrandtlReuss<TDomain>::
+plastic_multiplier(const size_t ip, const MathMatrix<dim, dim>& GradU)
+{
+	//	get elemData
+	MathMatrix<dim, dim>& strain_p_old_t = m_pElemData->internalVars[ip].strain_p_old_t;
+	number alpha = m_pElemData->internalVars[ip].alpha;
+
+	/////////////////////////
+	//  TRIAL ELASTIC STEP
+	//////////////////////////
+
+	MathMatrix<dim, dim> strain_trial;
+
+	//	compute linearized strain tensor (eps)
+	for(size_t i = 0; i < (size_t) dim; ++i)
+		for(size_t j = 0; j < (size_t) dim; ++j)
+		{
+			//	get eps_trial := eps_{n+1} - eps^p_{n}
+			strain_trial[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]) - strain_p_old_t[i][j];
+		}
+
+	MathMatrix<dim, dim> dev_strain_trial;
+	MatDeviatorTrace(strain_trial, dev_strain_trial);
+
+	//	compute trial strain deviator
+	MathMatrix<dim, dim> strial;
+	MatScale(strial, 2.0 * matConsts.mu, dev_strain_trial);
+
+	number strialnorm = MatFrobeniusNorm(strial);
+	number flowcondtrial = strialnorm - sqrt(2.0 / 3.0) * Hardening(alpha);
+
+	//////////////////////////////
+	//  CHECKING YIELD-CONDITION:
+	//////////////////////////////
+
+	if (flowcondtrial <= 0){
+		return 0.0;
+	}
+
+	////////////////////////////////////
+	//  RETURN-MAPPING (corrector-step)
+	////////////////////////////////////
+
+	UG_ASSERT(strialnorm > 0.0, "norm of strial needs to be > 0.0");
+
+	number gamma = 0.0;
+
+	//	computation of gamma (plastic corrector/multiplicator)
+	// 	accordingly to Simo/Hughes 98 p.121/122
+	switch (m_hardening)
+	{
+		case 0: gamma = PerfectPlasticity(flowcondtrial); break;
+		case 1: gamma = LinearHardening(flowcondtrial); break;
+		case 2: gamma = ExponentialHardening(strialnorm, alpha); break;
+		default:
+			UG_THROW(m_hardening << " in 'Flowrule' is not a valid hardening behavior! \n");
+	}
+
+	UG_ASSERT(gamma > 0.0, "gamma needs to be > 0.0");
+
+	return gamma;
+}
+
+template <typename TDomain>
 inline
 number
 PrandtlReuss<TDomain>::
