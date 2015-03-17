@@ -13,7 +13,7 @@ namespace SmallStrainMechanics{
 
 /// Prandtl-Reuss Law for ElastoPlasticity
 /**
- * 	A material law for small strain elastoplastic material behavior
+ * 	This class implements a material law for small strain elastoplastic material behavior
  *
  * 	It is supposed, that the linearized strain tensor could be decomposed additively:
  *
@@ -21,7 +21,7 @@ namespace SmallStrainMechanics{
  *
  *  The plastic behavior is described by a flow-condition and a flow-rule for the plastic
  *  evolution (\frac{\partial eps_p){\partial t} = ...). The flow-condition is of
- *  von-Mises-type and the flow-rule is associative. To treat the plasticity
+ *  von-Mises-type and the flow-rule is associative. To treat the plastic equations
  *  we use the well-established return-mapping-algorithm. Its classical form is valid for the
  *  3d-case and the plane strain-case, but not for the plane stress-case!
  *

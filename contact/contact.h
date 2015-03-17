@@ -22,6 +22,20 @@ using namespace std;
 namespace ug{
 namespace SmallStrainMechanics{
 
+/// Contact conditions for small strain mechanical applications
+/**
+ * Begin of the considering contact conditions in a structural mechanical model
+ * for small strains. This implementation is based on active sets.
+ *
+ * Still work in progress. A first introductive work for active sets and Lagrange
+ * multiplier can be found in:
+ *
+ * References:
+ * <ul>
+ * <li> Corinna Hager und Babara I. Wohlmuth: Hindernis- und Kontaktprobleme
+ * <ul>
+ */
+
 template <typename TDomain, typename TGridFunction>
 class ContactSmallStrainMechanics
 	:  public ILagrangeMultiplierDisc<TDomain, TGridFunction>

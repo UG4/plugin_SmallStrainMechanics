@@ -13,25 +13,37 @@ namespace SmallStrainMechanics{
 
 /// Hookes Law
 /**
- * 	The classical material law to describe linear elastic behavior for isotropic, homogeneous materials.
- * 	This law is based on the assumption of small strains, since only the linearized strain tensor
- * 	(commonly denoted with \epsilon) is used. With $u$ being the displacement vector, the strain tensor
- * 	\epsilon is defined by
+ * 	The classical material law to describe linear elastic behavior for
+ * 	isotropic, homogeneous materials. This law is based on the assumption
+ * 	of small strains, since only the linearized strain tensor
+ * 	(commonly denoted with \epsilon) is used. With $u$ being the
+ * 	displacement vector, the strain tensor \epsilon is defined by
  *
  * 		\epsilon = \frac{1}{2}(\nabla u + (\nabla u)^T),
  *
- * 	i.e. higher orders of the gradient of u are neglected here (-> 'linearized strain tensor').
+ * 	i.e. higher orders of the gradient of u are neglected here
+ * 	(-> 'linearized strain tensor').
  *
- *	Additionally Hooke`s law assumes a linear connection of stresses and strains. Therefore, the stresses
- *	\sigma are described by a law of the form,
+ *	Additionally Hooke`s law assumes a linear connection of stresses
+ *	and strains. Therefore, the stresses \sigma are described by a
+ *	law of the form,
  *
  *		\sigma = C : \epsilon
  *
- *	with C being a constant tensor of rank 4, called 'ElasticityTensor'. \sigma denotes the cauchy-stress tensor,
- *	which is, just like the strain tensor \epsilon, a symmetric tensor of rank 2. ':' denotes the tensor contraction,
- *	in components, \sigma_{ij} = C_{ijkl} \epsilon{kl}.
+ *	with C being a constant tensor of rank 4, called 'ElasticityTensor'.
+ *	\sigma denotes the cauchy-stress tensor, which is, just like the
+ *	strain tensor \epsilon, a symmetric tensor of rank 2.
+ *	':' denotes the tensor contraction, in components,
+ *
+ *	\sigma_{ij} = C_{ijkl} \epsilon{kl}.
  *
  * \tparam 	int		dim
+ *
+ * References:
+ * <ul>
+ * <li> D. Braess. Finite Elemente. Theorie, schnelle Löser und Anwendungen in der
+ * <li> Elastizitätstheorie, Springer
+ * <ul>
  */
 
 template <typename TDomain>

@@ -15,6 +15,12 @@ namespace SmallStrainMechanics{
 
 /// \addtogroup small_strain_mechanics
 /// \{
+/// Post-Processor (Output-Writer) for Linear Elasticity and Elasto-Plasticity problems
+/**
+* This class delivers some functions to write/visualize some output data like e.g.
+* normal components of the stress-tensor, the maximal eigenvalue of the stress tensor
+* at a given point or the equivalent plastic strain tensor.
+*/
 
 template<typename TDomain>
 class MechOutputWriter

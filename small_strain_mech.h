@@ -60,6 +60,9 @@ namespace SmallStrainMechanics{
 *
 * References:
 * <ul>
+* <li> D. Braess. Finite Elemente. Theorie, schnelle Löser und Anwendungen in der
+* <li> Elastizitätstheorie, Springer
+* <li>
 * <li> M. Rupp. Berechnung der Resonanzschwingungen einer Gitarrendecke.
 * <li> (Diplomarbeit, 2009, Universitaet Heidelberg)
 * <ul>
