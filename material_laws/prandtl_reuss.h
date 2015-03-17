@@ -27,7 +27,8 @@ namespace SmallStrainMechanics{
  *
  * References:
  * <ul>
- * <li> J. C. Simo and T.J.R. Hughes. Computational Inelasticity. Spinger, New York (1998), chapter 3.3.1
+ * <li> J.C. Simo and T.J.R. Hughes. Computational Inelasticity. Spinger, New York (1998), chapter 3.3.1
+ * <li>
  * <li> F.-J. Barthold, M. Schmidt and E. Stein. Error indicators and mesh refinements for
  * <li> finite-element computations of elastoplastic deformations. Computational Mechanics Vol. 22, 225-238 (1998)
  *</ul>
