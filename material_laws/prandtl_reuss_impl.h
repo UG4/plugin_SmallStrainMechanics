@@ -219,11 +219,12 @@ void
 PrandtlReuss<TDomain>::
 update_internal_vars(const size_t ip, const MathMatrix<dim, dim>& GradU)
 {
-	//  call "Update" to get strain_p_new (regarding time) and alpha at ip
 	MathMatrix<dim, dim>& strain_p_old_t = m_pElemData->internalVars[ip].strain_p_old_t;
 	//	TODO use a reference for alpha here!
 	number alpha = m_pElemData->internalVars[ip].alpha;
 
+	//  update the internal variables: strain_p_old_t (plastic strain tensor)
+	//	and alpha (hardening parameter) at ip
 	Update_internal_vars(strain_p_old_t, alpha, GradU, strain_p_old_t);
 	m_pElemData->internalVars[ip].alpha = alpha;
 }
@@ -385,7 +386,7 @@ number
 PrandtlReuss<TDomain>::
 plastic_multiplier(const size_t ip, const MathMatrix<dim, dim>& GradU)
 {
-	//	get elemData
+	//	get internal variables
 	MathMatrix<dim, dim>& strain_p_old_t = m_pElemData->internalVars[ip].strain_p_old_t;
 	number alpha = m_pElemData->internalVars[ip].alpha;
 
