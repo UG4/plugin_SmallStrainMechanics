@@ -11,6 +11,8 @@
 namespace ug{
 namespace SmallStrainMechanics{
 
+/// \addtogroup small_strain_mechanics
+/// \{
 /// Hookes Law
 /**
  * 	The classical material law to describe linear elastic behavior for

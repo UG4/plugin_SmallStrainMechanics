@@ -11,6 +11,8 @@
 namespace ug{
 namespace SmallStrainMechanics{
 
+/// \addtogroup small_strain_mechanics
+/// \{
 /// Prandtl-Reuss Law for ElastoPlasticity
 /**
  * 	This class implements a material law for small strain elastoplastic material behavior
