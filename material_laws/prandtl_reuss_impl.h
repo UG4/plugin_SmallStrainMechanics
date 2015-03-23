@@ -238,7 +238,7 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 		const MathMatrix<dim, dim>& strain_p_old_t)
 {
 	//	compute linearized strain tensor (eps)
-	MathMatrix<dim, dim> strain;
+	/*MathMatrix<dim, dim> strain;
 	strainTensor(strain, GradU);
 
 	MathMatrix<dim, dim> dev_strain;
@@ -247,7 +247,21 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 	MathMatrix<dim, dim> strial;
 	for(size_t i = 0; i < (size_t) dim; ++i)
 		for(size_t j = 0; j < (size_t) dim; ++j)
-			strial[i][j] = 2.0 * matConsts.mu * (dev_strain[i][j] - strain_p_old_t[i][j]);
+			strial[i][j] = 2.0 * matConsts.mu * (dev_strain[i][j] - strain_p_old_t[i][j]);*/
+
+	//	compute trial strain tensor (eps)
+	MathMatrix<dim, dim> strainTensTrial;
+	for(size_t i = 0; i < (size_t) dim; ++i)
+		for(size_t j = 0; j < (size_t) dim; ++j)
+			strainTensTrial[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]) - strain_p_old_t[i][j];
+
+	MathMatrix<dim, dim> dev_strainTrial;
+	MatDeviatorTrace(strainTensTrial, dev_strainTrial);
+
+	MathMatrix<dim, dim> strial;
+	for(size_t i = 0; i < (size_t) dim; ++i)
+		for(size_t j = 0; j < (size_t) dim; ++j)
+			strial[i][j] = 2.0 * matConsts.mu * dev_strainTrial[i][j];
 
 	number strialnorm = MatFrobeniusNorm(strial);
 	number flowcondtrial = strialnorm - sqrt(2.0 / 3.0) * Hardening(alpha);
