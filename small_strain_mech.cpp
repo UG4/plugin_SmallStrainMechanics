@@ -266,6 +266,7 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 
 	//	set global positions for rhs
 	m_imVolForce.set_global_ips(geo.global_ips(), geo.num_ip());
+	m_imPressure.set_global_ips(geo.global_ips(), geo.num_ip());
 
 	//	set pointer to internal variables of elem
 	m_spMatLaw->internal_vars(static_cast<TElem*>(elem));
@@ -733,7 +734,7 @@ ex_displacement_fe(MathVector<dim> vValue[],
 			}
 
 		}
-		UG_CATCH_THROW("SmallStrainMechanicsElemDisc::ex_divergence_fe: trial space missing.");
+		UG_CATCH_THROW("SmallStrainMechanicsElemDisc::ex_displacement_fe: trial space missing.");
 	}
 }
 
@@ -854,6 +855,7 @@ ex_divergence_fe(number vValue[],
 
 	}
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //	register assemble functions
