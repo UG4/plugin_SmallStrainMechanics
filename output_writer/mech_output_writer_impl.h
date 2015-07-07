@@ -149,6 +149,48 @@ normal_stresses_strains(MechOutputWriter<typename TGridFunction::domain_type>& m
 	}
 }
 
+template <typename TGridFunction>
+void invariants_kirchhoff_stress(TGridFunction& invarKirchhoffStress,
+		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
+		TGridFunction& u)
+{
+	static const int dim = TGridFunction::dim;
+	typedef typename TGridFunction::template dim_traits<dim>::grid_base_object grid_base_object;
+	typedef typename TGridFunction::template dim_traits<dim>::const_iterator const_iterator;
+
+	// 	local indices and local algebra
+	LocalIndices ind, indInvarKirchhoffStress;
+	LocalVector locU, locInvarKirchhoffStress;
+
+	const_iterator iter = u.template begin<grid_base_object>();
+	const_iterator end = u.template end<grid_base_object>();
+
+	//	loop over all elements
+	for(;iter != end; ++iter)
+	{
+		//	get element
+		grid_base_object* elem = *iter;
+
+		// 	get global indices
+		u.indices(elem, ind); invarKirchhoffStress.indices(elem, indInvarKirchhoffStress);
+
+		// 	adapt local algebra
+		locU.resize(ind); locInvarKirchhoffStress.resize(indInvarKirchhoffStress);
+
+		//	local vector extract -> locU
+		GetLocalVector(locU, u); GetLocalVector(locInvarKirchhoffStress, invarKirchhoffStress);
+
+		//	reset contribution of this element
+		locInvarKirchhoffStress = 0.0;
+
+		mechOut.invariants_kirchhoff_stress_elem(locInvarKirchhoffStress, elem, locU,
+				u.domain());
+
+		// 	send local to global tensor
+		AddLocalVector(invarKirchhoffStress, locInvarKirchhoffStress);
+	}
+}
+
 ///	count how many integration points are plastified
 template<typename TDomain>
 void
@@ -183,7 +225,7 @@ plastIP_elem(LocalVector& locPlastIP, TBaseElem* elem,
 	//  pointer to internal variable of current elem
 	m_spMatLaw->internal_vars(elem);
 
-	MathMatrix<dim, dim> GradU;
+	/*MathMatrix<dim, dim> GradU;
 	number plasticIP = 0.0;
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
@@ -195,6 +237,17 @@ plastIP_elem(LocalVector& locPlastIP, TBaseElem* elem,
 			plasticIP += 1.0;
 		if (gamma < 0.0)
 			UG_THROW("gamma: " << gamma << "in plastIP_elem \n");
+	}*/
+
+	MathMatrix<dim, dim> plastStrain;
+	number plasticIP = 0.0;
+	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
+	{
+		plastStrain = *(m_spMatLaw->inelastic_strain_tensor(ip));
+
+		number plastStrainNorm = MatFrobeniusNorm(plastStrain);
+		if (plastStrainNorm > 0.0)
+			plasticIP += 1.0;
 	}
 
 	for (size_t co = 0; co < elem->num_vertices(); ++co)
@@ -465,6 +518,96 @@ normal_stress_strain_elem(LocalVector& locSigma, LocalVector& locEps, LocalVecto
 		}
 
 	};
+}
+
+///	compute the invariants of the kirchhoff stress tensor per element
+template<typename TDomain>
+void
+MechOutputWriter<TDomain>::
+invariants_kirchhoff_stress_elem(LocalVector& locInvarKirchhoffStress,
+		TBaseElem* elem, const LocalVector& u, SmartPtr<TDomain> dom)
+{
+	//	get vertices and extract corner coordinates
+	typedef typename TDomain::position_accessor_type position_accessor_type;
+	position_accessor_type& aaPos = dom->position_accessor();
+	MathVector<dim> coCoord[domain_traits<dim>::MaxNumVerticesOfElem];
+	const size_t numVertices = elem->num_vertices();
+	for (size_t i = 0; i < numVertices; ++i) {
+		coCoord[i] = aaPos[elem->vertex(i)];
+	};
+
+	//	prepare geometry for type and order
+	DimFEGeometry<dim> geo;
+	try{
+		geo.update(elem, &(coCoord[0]),
+				LFEID(LFEID::LAGRANGE, dim, 1), m_quadOrder);
+	}
+	UG_CATCH_THROW("MechOutputWriterFinite::invariants_kirchhoff_stress_elem:"
+					" Cannot update Finite Element Geometry.");
+
+	//	get all neighbor elems which share a vertex with the given element 'elem'
+	typename TDomain::grid_type& grid = *(dom->grid());
+	typedef typename vector<TBaseElem*>::iterator neighborElemIter;
+	vector<TBaseElem*> vNeighborElems;
+	CollectNeighbors(vNeighborElems, elem, grid, NHT_VERTEX_NEIGHBORS);
+
+	//  pointer to internal variable of current elem
+	m_spMatLaw->internal_vars(elem);
+
+	MathMatrix<dim, dim> tauTens, tauTens2, GradU, sigma, F, Ident;
+	MatIdentity(Ident);
+	for (size_t co = 0; co < elem->num_vertices(); ++co)
+	{
+		number invar1_ip = 0.0;
+		number invar2_ip = 0.0;
+		number invar3_ip = 0.0;
+
+		//	loop ip`s and determine the next ip`s to corner co!
+		vector<size_t> vNextIP;
+		next_ips_to_point(vNextIP, coCoord[co], geo);
+
+		for (vector<size_t>::iterator it = vNextIP.begin();
+								it != vNextIP.end(); ++it)
+		{
+			//	get deformation gradient at ip
+			m_spMatLaw->template DisplacementGradient<DimFEGeometry<dim> >(GradU, *it, geo, u);
+
+			//	get Cauchy stress-tensor (sigma) at ip
+			m_spMatLaw->stressTensor(sigma, *it, GradU);
+
+			//	compute the kirchhoff stress-tensor at ip
+			MatAdd(F, GradU, Ident);
+			number detF = Determinant(F);
+			MatScale(tauTens, 1.0/detF, sigma);
+
+
+			MatMultiply(tauTens2, tauTens, tauTens);
+			number traceTauTens_ip = Trace(tauTens);
+			number traceTauTens2_ip = Trace(tauTens2);
+
+			invar1_ip += traceTauTens_ip;
+			invar2_ip += 0.5 * (traceTauTens_ip * traceTauTens_ip - traceTauTens2_ip);
+			invar3_ip += Determinant(tauTens);
+		}
+
+		//	init 'elemsWithCo' with 1, because co lies in 'elem'
+		size_t elemsWithCo = 1;
+
+		//	iterate neighbor elems and count how many elems contain the corner 'co'
+		for (neighborElemIter it = vNeighborElems.begin();
+				it != vNeighborElems.end(); ++it){
+			if (ContainsPoint(*it, coCoord[co], aaPos) == true)
+				elemsWithCo++;
+		}
+
+		//	scaling factor for averaging values out of all ips
+		//	of the associated elements of corner co
+		const size_t scaleFac = elemsWithCo * vNextIP.size();
+
+		locInvarKirchhoffStress(0, co) = invar1_ip/scaleFac;
+		locInvarKirchhoffStress(1, co) = invar2_ip/scaleFac;
+		locInvarKirchhoffStress(2, co) = invar3_ip/scaleFac;
+	}
 }
 
 template<typename TDomain>

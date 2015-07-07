@@ -83,14 +83,21 @@ class MechOutputWriter
 		void quad_order(const int quadOrder)
 			{m_quadOrder = quadOrder;}
 
+		///	marks the integration point, where a plastic evolution occurs
 		void plastIP_elem(LocalVector& locPlastIP, TBaseElem* elem,
 				const LocalVector& locU, SmartPtr<TDomain> dom);
 
+		///	get the equivalent plastic strain
 		void eqPlastStrain_elem(LocalVector& locEqPlastStrain, TBaseElem* elem, const LocalVector& locU,
 				SmartPtr<TDomain> dom);
 
+		///	get some normalized values of the Cauchy-stress and strain tensor
 		void normal_stress_strain_elem(LocalVector& locSigma, LocalVector& locEps, LocalVector& locStressFunc,
 				LocalVector& locStrainFunc, TBaseElem* elem, const LocalVector& locU, SmartPtr<TDomain> dom);
+
+		///	get the invariants of the kirchhoff stress tensor using the vector of unknowns u
+		void invariants_kirchhoff_stress_elem(LocalVector& locInvarKirchhoffStress,
+				TBaseElem* elem, const LocalVector& u, SmartPtr<TDomain> dom);
 
 	private:
 		template<typename TFEGeom>
@@ -142,6 +149,11 @@ void plast_ip(TGridFunction& plastIP,
 
 template <typename TGridFunction>
 void equiv_plast_strain(TGridFunction& eqPlastStrain,
+		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
+		TGridFunction& u);
+
+template <typename TGridFunction>
+void invariants_kirchhoff_stress(TGridFunction& invarKirchhoffStress,
 		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
 		TGridFunction& u);
 
