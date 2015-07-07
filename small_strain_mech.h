@@ -103,6 +103,10 @@ class SmallStrainMechanicsElemDisc
 		void set_material_law(SmartPtr<IMaterialLaw<TDomain> > spMatLaw)
 		{ m_spMatLaw = spMatLaw;}
 
+	///	gets the material law
+		SmartPtr<IMaterialLaw<TDomain> > get_material_law()
+		{ return m_spMatLaw;}
+
 	///	set an output writer
 		void set_output_writer(SmartPtr<MechOutputWriter<TDomain> > spOutWriter){
 			m_spOutWriter = spOutWriter; m_bOutWriter = true;
@@ -131,6 +135,8 @@ class SmallStrainMechanicsElemDisc
 
 	///	sets the quad order
 		void set_quad_order(const size_t order) {m_quadOrder = order; m_bQuadOrderUserDef = true;}
+	///	gets the quad order
+		int get_quad_order() {return m_quadOrder;}
 
 		void set_mass_scale(double val) { m_massScale = val; }
 
@@ -339,5 +345,7 @@ class SmallStrainMechanicsElemDisc
 
 } //end of namespace SmallStrainMechanics
 } //end of namespace ug
+
+
 
 #endif /* SMALL_STRAIN_MECH_H_ */

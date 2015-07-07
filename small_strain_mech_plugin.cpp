@@ -12,6 +12,7 @@
 
 #include "small_strain_mech.h"
 #include "output_writer/mech_output_writer.h"
+#include "adaptive_util.h"
 #include "contact/contact.h"
 
 #include "material_laws/hooke.h"
@@ -73,6 +74,13 @@ static void DomainAlgebra(Registry& reg, string grp)
 					&plast_ip<function_type>, grp);
 	reg.add_function("equiv_plast_strain",
 					&equiv_plast_strain<function_type>, grp);
+	reg.add_function("invariants_kirchhoff_stress",
+					&invariants_kirchhoff_stress<function_type>, grp);
+
+//	MarkForAdaption_PlasticElem-Indicator
+	reg.add_function("MarkForAdaption_PlasticElem",
+			 &MarkForAdaption_PlasticElem<TDomain, TAlgebra>, grp);
+
 }
 
 /**
@@ -100,8 +108,9 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const char*,const char*)>("Function#Subsets")
 			.add_method("set_material_law", &T::set_material_law, "", "material law")
+			.add_method("get_material_law", &T::get_material_law, "", "material law")
 			.add_method("set_output_writer", &T::set_output_writer, "", "set output writer")
-			.add_method("set_quad_order", &T::set_quad_order, "", "order")
+			.add_method("set_quad_order", &T::set_quad_order, "", "quad order")
 
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (SmartPtr<CplUserData<MathVector<dim>, dim> >) ) ,"", "Force field")
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number)), "", "F")
