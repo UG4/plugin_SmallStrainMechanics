@@ -99,7 +99,7 @@ class PrandtlReuss
 	///	set precision of numerical approximation of the tangent
 		void set_tangent_precision(const number tanAccur)
 		{m_tangentAccur = tanAccur;
-		std::stringstream ss; ss << m_materialConfiguration << "accuracy of the tangent approximation = " << tanAccur << "\n";
+		std::stringstream ss; ss << m_materialConfiguration << " accuracy of the tangent approximation = " << tanAccur << "\n";
 		m_materialConfiguration = ss.str();}
 
 

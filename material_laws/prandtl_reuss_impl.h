@@ -73,7 +73,7 @@ set_hardening_behavior(int hard)
 				m_HardAccuracy = 1e-10;
 				ss << m_materialConfiguration << "exponential hardening \n"
 				<< " max. hardening iterations = " << m_MaxHardIter
-				<< " hardening accuracy = " << m_HardAccuracy;
+				<< ", hardening accuracy = " << m_HardAccuracy;
 				m_materialConfiguration = ss.str();
 				break;
 
@@ -237,18 +237,6 @@ Update_internal_vars(MathMatrix<dim, dim>& strain_p_new,
 		const MathMatrix<dim, dim>& GradU,
 		const MathMatrix<dim, dim>& strain_p_old_t)
 {
-	//	compute linearized strain tensor (eps)
-	/*MathMatrix<dim, dim> strain;
-	strainTensor(strain, GradU);
-
-	MathMatrix<dim, dim> dev_strain;
-	MatDeviatorTrace(strain, dev_strain);
-
-	MathMatrix<dim, dim> strial;
-	for(size_t i = 0; i < (size_t) dim; ++i)
-		for(size_t j = 0; j < (size_t) dim; ++j)
-			strial[i][j] = 2.0 * matConsts.mu * (dev_strain[i][j] - strain_p_old_t[i][j]);*/
-
 	//	compute trial strain tensor (eps)
 	MathMatrix<dim, dim> strainTensTrial;
 	for(size_t i = 0; i < (size_t) dim; ++i)
