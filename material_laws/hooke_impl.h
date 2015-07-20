@@ -245,7 +245,6 @@ set_hooke_elasticity_tensor(const number lambda, const number mu)
 	ss << "  bulk modulus (Kompressionsmodul): " << kappa << "\n";
 	ss << "  Elasticity Tensor = " << elastTensorFunct << "\n";
 	m_materialConfiguration = ss.str();
-	UG_LOG("\n" << m_materialConfiguration << "\n");
 }
 
 }//	end of namespace SmallStrainMechanics
