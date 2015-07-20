@@ -29,7 +29,7 @@ namespace SmallStrainMechanics{
 /** 
  *  \defgroup small_strain_mechanics Small Strain Mechanics
  *  \ingroup plugins_core
- *  This is a plugin for Finite Strain Mechanics functionality.
+ *  This is a plugin for Small Strain Mechanics functionality.
  *  \{
  */
 
