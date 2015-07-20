@@ -28,7 +28,7 @@ namespace SmallStrainMechanics{
 
 /// \addtogroup small_strain_mechanics
 /// \{
-/// Element Discretization for Linear Elasticity and Elasto-Plasticity problems (restricted to small deformations)
+/// Element Discretization for Linear Elasticity and Elasto-Plasticity problems (restricted to small deformations; linearized theory)
 /**
 * This class assembles the equation of the static linear elasticity problem:
 *
