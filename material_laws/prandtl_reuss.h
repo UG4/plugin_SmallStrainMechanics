@@ -13,7 +13,8 @@ namespace SmallStrainMechanics{
 
 /// \addtogroup small_strain_mechanics
 /// \{
-/// Prandtl-Reuss Law for ElastoPlasticity
+/// Material Law: Prandtl-Reuss law modelling elastoplastic material behavior where the elastic
+///	part is considered as linear. The flow-condition is of von-Mises-type.
 /**
  * 	This class implements a material law for small strain elastoplastic material behavior
  *

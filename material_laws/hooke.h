@@ -13,7 +13,7 @@ namespace SmallStrainMechanics{
 
 /// \addtogroup small_strain_mechanics
 /// \{
-/// Hookes Law
+/// Material Law: Hookes Law modelling linear elastic behavior for isotropic, homogenous materials
 /**
  * 	The classical material law to describe linear elastic behavior for
  * 	isotropic, homogeneous materials. This law is based on the assumption
