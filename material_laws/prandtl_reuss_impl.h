@@ -72,8 +72,8 @@ set_hardening_behavior(int hard)
 				m_MaxHardIter = 100;
 				m_HardAccuracy = 1e-10;
 				ss << m_materialConfiguration << "exponential hardening \n"
-				<< " max. hardening iterations = " << m_MaxHardIter
-				<< ", hardening accuracy = " << m_HardAccuracy;
+				<< " max. hardening iterations = " << m_MaxHardIter << "\n"
+				<< ", hardening accuracy = " << m_HardAccuracy << "\n";
 				m_materialConfiguration = ss.str();
 				break;
 
