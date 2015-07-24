@@ -509,8 +509,8 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 */
 				for (size_t i = 0; i < num_fct(); ++i)
 				{
-					d(i, sh) += m_imViscousForces[0][ip][i]*gradPhi_v1;
-					d(i, sh) += m_imViscousForces[1][ip][i]*gradPhi_v0;
+					d(i, sh) += geo.weight(ip)*m_imViscousForces[0][ip][i]*gradPhi_v1;
+					d(i, sh) += geo.weight(ip)*m_imViscousForces[1][ip][i]*gradPhi_v0;
 
 				} // end(i)
 			}// end (sh)
@@ -611,8 +611,8 @@ lin_def_viscous_forces0(const LocalVector& u,
 			// loop components
 			for (size_t i = 0; i < num_fct(); ++i)
 			{
-				VecScale(vvvLinDef[ip][i][sh], m_imViscousForces[1][ip], geo.global_grad(ip, sh)[i]);
-				(vvvLinDef[ip][i][sh])[i] += gradPhi_v1;
+				VecScale(vvvLinDef[ip][i][sh], m_imViscousForces[1][ip], geo.weight(ip)*geo.global_grad(ip, sh)[i]);
+				(vvvLinDef[ip][i][sh])[i] += geo.weight(ip)*gradPhi_v1;
 			} // end(i)
 		}// end (sh)
 	} // end (ip)end (ip)
