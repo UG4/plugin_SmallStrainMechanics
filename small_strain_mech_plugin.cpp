@@ -113,6 +113,8 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_output_writer", &T::set_output_writer, "", "set output writer")
 			.add_method("set_quad_order", &T::set_quad_order, "", "quad order")
 
+			.add_method("set_mass_scale", &T::set_mass_scale, "", "massScale")
+
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (SmartPtr<CplUserData<MathVector<dim>, dim> >) ) ,"", "Force field")
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number)), "", "F")
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number, number)), "", "F_x, F_y")
@@ -121,8 +123,7 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (SmartPtr<CplUserData<number, dim> >)), "", "Pressure")
 			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (number)), "", "Pressure")
 
-			.add_method("set_mass_scale", &T::set_mass_scale, "", "massScale")
-
+			.add_method("set_viscous_forces", OVERLOADED_METHOD_PTR(void, T, set_viscous_forces, (SmartPtr<CplUserData<MathVector<dim>, dim> >, SmartPtr<CplUserData<MathVector<dim>, dim> >) ) ,"", "Force field")
 #ifdef UG_FOR_LUA
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (const char*)) , "", "Force field")
 			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (const char*)), "", "Pressure")

@@ -60,8 +60,8 @@ namespace SmallStrainMechanics{
 *
 * References:
 * <ul>
-* <li> D. Braess. Finite Elemente. Theorie, schnelle Löser und Anwendungen in der
-* <li> Elastizitätstheorie, Springer
+* <li> D. Braess. Finite Elemente. Theorie, schnelle Loeser und Anwendungen in der
+* <li> Elastizitaetstheorie, Springer
 * <li>
 * <li> M. Rupp. Berechnung der Resonanzschwingungen einer Gitarrendecke.
 * <li> (Diplomarbeit, 2009, Universitaet Heidelberg)
@@ -113,7 +113,11 @@ class SmallStrainMechanicsElemDisc
 			m_spOutWriter->preprocess();
 		}
 
-	///	set volume forces
+		/** set volume forces for rhs:
+		 * Phi * F = Phi * (grad p)
+		 *  */
+
+		/// \{
 		void set_volume_forces(SmartPtr<CplUserData<MathVector<dim>, dim> > user);
 		void set_volume_forces(number vel);
 		void set_volume_forces(number vel_x, number vel_y);
@@ -121,9 +125,11 @@ class SmallStrainMechanicsElemDisc
 	#ifdef UG_FOR_LUA
 			void set_volume_forces(const char* fctName);
 	#endif
+		///	\}
 
 		/**
-		 * This method sets the pressure term. A zero value is assumed as default.
+		 * This method sets a pressure term for rhs. A zero value is assumed as default.
+		 * p * sum dx_i Phi_sh,i
 		 */
 		///	\{
 		void set_pressure(SmartPtr<CplUserData<number, dim> > user);
@@ -131,6 +137,15 @@ class SmallStrainMechanicsElemDisc
 #ifdef UG_FOR_LUA
 		void set_pressure(const char* fctName);
 #endif
+		///	\}
+
+		/**
+		 * This methods sets rhs for "viscous stresses"
+		 * v0^T (gradPhi +gradPhi^T) v1
+		 * */
+		/// \{
+		void set_viscous_forces(SmartPtr<CplUserData<MathVector<dim>, dim> > user0,
+								SmartPtr<CplUserData<MathVector<dim>, dim> > user1);
 		///	\}
 
 	///	sets the quad order
@@ -259,6 +274,17 @@ class SmallStrainMechanicsElemDisc
 								  std::vector<std::vector<MathVector<dim> > > vvvLinDef[],
 								  const size_t nip);
 
+
+		template <typename TElem, typename TFEGeom>
+		void lin_def_viscous_forces0(const LocalVector& u,
+										  std::vector<std::vector<MathVector<dim> > > vvvLinDef[],
+										  const size_t nip);
+
+		template <typename TElem, typename TFEGeom>
+		void lin_def_viscous_forces1(const LocalVector& u,
+												  std::vector<std::vector<MathVector<dim> > > vvvLinDef[],
+												  const size_t nip);
+
 		///	computes the displacements (and derivatives)
 		template <typename TElem, typename TFEGeom>
 		void ex_displacement(const LocalVector& u,
@@ -298,6 +324,9 @@ class SmallStrainMechanicsElemDisc
 
 	///	Data import for the reaction term
 		DataImport<number, dim> m_imPressure;
+
+	///	data import for viscous forces
+		DataImport<MathVector<dim>, dim > m_imViscousForces[2];
 
 
 	public:

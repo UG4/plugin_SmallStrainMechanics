@@ -119,6 +119,16 @@ set_pressure(const char* fctName)
 	set_pressure(LuaUserDataFactory<number,dim>::create(fctName));
 }
 #endif
+
+//////// Volume forces (IMPORT)
+template<typename TDomain>
+void SmallStrainMechanicsElemDisc<TDomain>::
+set_viscous_forces(SmartPtr<CplUserData<MathVector<dim>, dim> > user1, SmartPtr<CplUserData<MathVector<dim>, dim> > user2)
+{
+	m_imViscousForces[0].set_data(user1);
+	m_imViscousForces[1].set_data(user2);
+}
+
 //////////////////////////////////
 
 template<typename TDomain>
@@ -243,6 +253,8 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 	static const int refDim = TElem::dim;
 	m_imVolForce.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 	m_imPressure.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
+	m_imViscousForces[0].template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
+	m_imViscousForces[1].template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 }
 
 template<typename TDomain>
@@ -266,7 +278,10 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 
 	//	set global positions for rhs
 	m_imVolForce.set_global_ips(geo.global_ips(), geo.num_ip());
+	m_imViscousForces[0].set_global_ips(geo.global_ips(), geo.num_ip());
+	m_imViscousForces[1].set_global_ips(geo.global_ips(), geo.num_ip());
 	m_imPressure.set_global_ips(geo.global_ips(), geo.num_ip());
+
 
 	//	set pointer to internal variables of elem
 	m_spMatLaw->internal_vars(static_cast<TElem*>(elem));
@@ -381,27 +396,16 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 				number innerForcesIP = 0.0;
 
 				//	i-th comp. of INTERNAL FORCES at node a:
-				for (size_t J = 0; J < (size_t) dim; ++J)
-					innerForcesIP += sigma[i][J] * geo.global_grad(ip, sh)[J];
+				for (size_t j = 0; j < (size_t) dim; ++j)
+					innerForcesIP += sigma[i][j] * geo.global_grad(ip, sh)[j];
 
 				d(i, sh) += geo.weight(ip) * innerForcesIP;
 			} //end (i)
 
 	}//end (ip)
 
-/*
-	// b) pressure part: p div (V_ip)
-	if (m_imPressure.data_given()) {
 
-		for (size_t a = 0; a < geo.num_sh(); ++a) {// loop shape functions
-			for (size_t i = 0; i < num_fct(); ++i) // loop components
-			{
-				//d(i, a) += geo.weight(ip)*0.0;
 
-			} // end(i)
-		}// end (a)
-	} // pressure
-*/
 
 }
 
@@ -422,23 +426,24 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
-	// a) volume forces: Phi * F = Phi * (grad p)
+	// a) volume forces: $$  \vec F*Phi =(grad p)*Phi$$
 	if(m_imVolForce.data_given()) {
-
-		//
+		// loop ip
 		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
-		{ 	// loop ip
+		{
+			// loop shape
 			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
-			{	// loop shape functions
+			{
+				// loop component
 				for(size_t i = 0; i < num_fct(); ++i)
-				{ // loop component
+				{
 					d(i,sh) += geo.weight(ip) * geo.shape(ip, sh) * m_imVolForce[ip][i];
 				}
 			}
 		}
 	}
 
-	// b) scalar contribution: p * sum dx_i Phi_sh,i
+	// b) scalar contribution, e.g, p * sum dx_i Phi_sh,i
 	if(m_imPressure.data_given()) {
 
 		for(size_t sh = 0; sh < geo.num_sh(); ++sh)
@@ -455,11 +460,70 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 	} // pressure data
 
 
+
+/*
+	// b) pressure part: p(ip) div (V_sh,ip)
+	// if (m_imPressure.data_given()) {
+	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
+	{ // loop IPs
+
+		for (size_t sh = 0; sh < geo.num_sh(); ++sh)
+		{ // loop shape functions
+
+			for (size_t i = 0; i < num_fct(); ++i)
+			{ // loop components
+
+				number divIP = 0.0;
+				for (size_t j = 0; j < (size_t) dim; ++j)
+				{
+					divIP += geo.global_grad(ip, sh)[j];
+				}
+				d(i, sh) += geo.weight(ip)*divIP; //import(ip)
+
+			} // end(i)
+		}// end (sh)
+	} // end (ip)
+*/
+
+	// c) viscous stresses:
+	// $$ v0^T (grad Phi + grad Phi^T) v1 = v0^T (grad Phi) v1 + ((grad Phi) v0)^T v1 $$
+
+	if (m_imViscousForces[0].data_given() &&
+			m_imViscousForces[1].data_given())
+	{
+		for (size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{ // loop IPs
+
+			for (size_t sh = 0; sh < geo.num_sh(); ++sh)
+			{ // loop shape functions
+
+				number gradPhi_v0 = VecDot(geo.global_grad(ip, sh), m_imViscousForces[0][ip]);
+				number gradPhi_v1 = VecDot(geo.global_grad(ip, sh), m_imViscousForces[1][ip]);
+				/*for (size_t i = 0; i < num_fct(); ++i)
+				{
+					// (grad Phi) v0
+					gradPhi_v0 += geo.global_grad(ip, sh)[i]*m_imViscousForces[0][ip][i];
+					// (grad Phi) v1
+					gradPhi_v1 += geo.global_grad(ip, sh)[i]*m_imViscousForces[1][ip][i];
+				}
+*/
+				for (size_t i = 0; i < num_fct(); ++i)
+				{
+					d(i, sh) += m_imViscousForces[0][ip][i]*gradPhi_v1;
+					d(i, sh) += m_imViscousForces[1][ip][i]*gradPhi_v0;
+
+				} // end(i)
+			}// end (sh)
+		} // end (ip)
+	}
+
 }
 
 
-//	computes the linearized defect w.r.t to the pressure
-// $$ \frac{\partial d(u,I_1), ... d(u,I_n)}{\partial I_i} $$
+/**	computes the linearized defect w.r.t to the pressure:
+	$$ \frac{\partial d(u,I_1), ... d(u,I_n)}{\partial I_i} $$
+	(since d is a vector, we obtain a bunch of vectors)
+ */
 template<typename TDomain>
 template <typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
@@ -485,8 +549,11 @@ lin_def_pressure(const LocalVector& u,
 	}
 
 }
-//	computes the linearized defect w.r.t to the volume forces
-// $$ \frac{\partial d(u,I_1), ... d(u,I_n)}{\partial I_i} $$
+
+/**	computes the linearized defect w.r.t to the volume forces
+	$$ \frac{\partial d(u,I_1), ... d(u,I_n)}{\partial I_i} $$
+	(since d is a vector, we obtain a bunch of diagonal matrices)
+*/
 template<typename TDomain>
 template <typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::
@@ -504,17 +571,10 @@ lin_def_volume_forces(const LocalVector& u,
 		for (size_t i = 0; i < num_fct(); ++i)
 		{ // loop component
 
-			// 	get ui at integration point
-			/*
-			 * number shape_ui = 0.0;
-			for(size_t a = 0; a < geo.num_sh(); ++a)
-				shape_ui += u(i,a) * geo.shape(ip, a);
-*/
 			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 			{ // loop test spaces
 
 				//	add to local defect
-				//	geo.shape(ip, sh) * geo.weight(ip);
 				vvvLinDef[ip][i][sh] = 0.0;
 				(vvvLinDef[ip][i][sh])[i] = geo.weight(ip)*geo.shape(ip, sh);
 				/*VecScale(vvvLinDef[ip][i][sh], geo.global_grad(ip, sh),
@@ -524,6 +584,74 @@ lin_def_volume_forces(const LocalVector& u,
 	}
 }
 
+/**	computes the linearized defect w.r.t to the volume forces
+	$$ \frac{\partial d(u,I_1), ... d(u,I_n)}{\partial I_i} $$
+	(since d is a vector, we obtain a bunch of diagonal matrices)
+*/
+template<typename TDomain>
+template <typename TElem, typename TFEGeom>
+void SmallStrainMechanicsElemDisc<TDomain>::
+lin_def_viscous_forces0(const LocalVector& u,
+	                  std::vector<std::vector<MathVector<dim> > > vvvLinDef[],
+	                  const size_t nip)
+{
+	//	request geometry
+	static const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+	UG_ASSERT(nip == geo.num_ip(), "Number of integration points does not match!");
+
+	// loop IPs
+	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
+	{
+		// loop shape functions
+		for (size_t sh = 0; sh < geo.num_sh(); ++sh)
+		{
+			//number gradPhi_v0 = VecDot(geo.global_grad(ip, sh), m_imViscousForces[0][ip]);
+			number gradPhi_v1 = VecDot(geo.global_grad(ip, sh), m_imViscousForces[1][ip]);
+
+			// loop components
+			for (size_t i = 0; i < num_fct(); ++i)
+			{
+				VecScale(vvvLinDef[ip][i][sh], m_imViscousForces[1][ip], geo.global_grad(ip, sh)[i]);
+				(vvvLinDef[ip][i][sh])[i] += gradPhi_v1;
+			} // end(i)
+		}// end (sh)
+	} // end (ip)end (ip)
+}
+
+/**	computes the linearized defect w.r.t to the volume forces
+	$$ \frac{\partial d(u,I_1), ... d(u,I_n)}{\partial I_i} $$
+	(since d is a vector, we obtain a bunch of diagonal matrices)
+*/
+template<typename TDomain>
+template <typename TElem, typename TFEGeom>
+void SmallStrainMechanicsElemDisc<TDomain>::
+lin_def_viscous_forces1(const LocalVector& u,
+	                  std::vector<std::vector<MathVector<dim> > > vvvLinDef[],
+	                  const size_t nip)
+{
+	//	request geometry
+		static const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+		UG_ASSERT(nip == geo.num_ip(), "Number of integration points does not match!");
+
+		// loop IPs
+		for (size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{
+			// loop shape functions
+			for (size_t sh = 0; sh < geo.num_sh(); ++sh)
+			{
+				number gradPhi_v0 = VecDot(geo.global_grad(ip, sh), m_imViscousForces[0][ip]);
+				//number gradPhi_v1 = VecDot(geo.global_grad(ip, sh), m_imViscousForces[1][ip]);
+
+				// loop components
+				for (size_t i = 0; i < num_fct(); ++i)
+				{
+					VecScale(vvvLinDef[ip][i][sh], m_imViscousForces[0][ip], geo.global_grad(ip, sh)[i]);
+					(vvvLinDef[ip][i][sh])[i] += gradPhi_v0;
+				} // end(i)
+			}// end (sh)
+		} // end (ip)end (ip)
+
+}
 
 template<typename TDomain>
 template<typename TElem, typename TFEGeom>
@@ -605,7 +733,13 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 	//	register imports
 	this->register_import(m_imPressure);
 	this->register_import(m_imVolForce);
+	this->register_import(m_imViscousForces[0]);
+	this->register_import(m_imViscousForces[1]);
+
+	m_imPressure.set_rhs_part();
 	m_imVolForce.set_rhs_part();
+	m_imViscousForces[0].set_rhs_part();
+	m_imViscousForces[1].set_rhs_part();
 
 	//	set defaults
 	m_order = 1;
@@ -1047,6 +1181,9 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 	// specify computation of linearized defect w.r.t imports
 	m_imVolForce.set_fct(id, this, &T::template lin_def_volume_forces<TElem, TFEGeom>);
 	m_imPressure.set_fct(id, this, &T::template lin_def_pressure<TElem, TFEGeom>);
+	m_imViscousForces[0].set_fct(id, this, &T::template lin_def_viscous_forces0<TElem, TFEGeom>);
+	m_imViscousForces[1].set_fct(id, this, &T::template lin_def_viscous_forces1<TElem, TFEGeom>);
+
 
 	// exports
 	m_exDisplacement->  template set_fct<T,refDim>(id, this, &T::template ex_displacement_fe<TElem, TFEGeom>);
