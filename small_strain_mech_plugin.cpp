@@ -11,13 +11,13 @@
 #include "lib_disc/function_spaces/grid_function.h"
 
 #include "small_strain_mech.h"
-#include "output_writer/mech_output_writer.h"
-#include "adaptive_util.h"
+//#include "adaptive_util.h"
 #include "contact/contact.h"
 
 #include "material_laws/hooke.h"
 #include "material_laws/prandtl_reuss.h"
 #include "material_laws/mat_law_interface.h"
+#include "output_writer/mech_output_writer.h"
 #include "bridge/util_overloaded.h"
 
 using namespace std;
@@ -75,12 +75,12 @@ static void DomainAlgebra(Registry& reg, string grp)
 					&plast_ip<function_type>, grp);
 	reg.add_function("equiv_plast_strain",
 					&equiv_plast_strain<function_type>, grp);
-	reg.add_function("invariants_kirchhoff_stress",
-					&invariants_kirchhoff_stress<function_type>, grp);
+	//reg.add_function("invariants_kirchhoff_stress",
+	//				&invariants_kirchhoff_stress<function_type>, grp);
 
 //	MarkForAdaption_PlasticElem-Indicator
-	reg.add_function("MarkForAdaption_PlasticElem",
-			 &MarkForAdaption_PlasticElem<TDomain, TAlgebra>, grp);
+	//reg.add_function("MarkForAdaption_PlasticElem",
+	//		 &MarkForAdaption_PlasticElem<TDomain, TAlgebra>, grp);
 
 }
 
@@ -120,13 +120,13 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number, number)), "", "F_x, F_y")
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (number, number, number)), "", "F_x, F_y, F_z")
 
-			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (SmartPtr<CplUserData<number, dim> >)), "", "Pressure")
-			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (number)), "", "Pressure")
+			.add_method("set_div_factor", OVERLOADED_METHOD_PTR(void, T, set_div_factor, (SmartPtr<CplUserData<number, dim> >)), "", "Pressure")
+			.add_method("set_div_factor", OVERLOADED_METHOD_PTR(void, T, set_div_factor, (number)), "", "Pressure")
 
 			.add_method("set_viscous_forces", OVERLOADED_METHOD_PTR(void, T, set_viscous_forces, (SmartPtr<CplUserData<MathVector<dim>, dim> >, SmartPtr<CplUserData<MathVector<dim>, dim> >) ) ,"", "Force field")
 #ifdef UG_FOR_LUA
 			.add_method("set_volume_forces", OVERLOADED_METHOD_PTR(void, T, set_volume_forces, (const char*)) , "", "Force field")
-			.add_method("set_pressure", OVERLOADED_METHOD_PTR(void, T, set_pressure, (const char*)), "", "Pressure")
+			.add_method("set_div_factor", OVERLOADED_METHOD_PTR(void, T, set_div_factor, (const char*)), "", "Pressure")
 #endif
 
 			.add_method("displacement", &T::displacement)

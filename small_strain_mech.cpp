@@ -99,24 +99,24 @@ set_volume_forces(const char* fctName)
 
 template<typename TDomain>
 void SmallStrainMechanicsElemDisc<TDomain>::
-set_pressure(SmartPtr<CplUserData<number, dim> > user) 
+set_div_factor(SmartPtr<CplUserData<number, dim> > user)
 {
-	m_imPressure.set_data(user);
+	m_imDivergence.set_data(user);
 }
 
 template<typename TDomain>
 void SmallStrainMechanicsElemDisc<TDomain>::
-set_pressure(number val)
+set_div_factor(number val)
 {
-	set_pressure(make_sp(new ConstUserNumber<dim>(val)));
+	set_div_factor(make_sp(new ConstUserNumber<dim>(val)));
 }
 
 #ifdef UG_FOR_LUA
 template<typename TDomain>
 void SmallStrainMechanicsElemDisc<TDomain>::
-set_pressure(const char* fctName)
+set_div_factor(const char* fctName)
 {
-	set_pressure(LuaUserDataFactory<number,dim>::create(fctName));
+	set_div_factor(LuaUserDataFactory<number,dim>::create(fctName));
 }
 #endif
 
@@ -252,7 +252,7 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 	//	set local positions for rhs
 	static const int refDim = TElem::dim;
 	m_imVolForce.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
-	m_imPressure.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
+	m_imDivergence.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
 	m_imViscousForces[0].template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 	m_imViscousForces[1].template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 }
@@ -280,7 +280,7 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 	m_imVolForce.set_global_ips(geo.global_ips(), geo.num_ip());
 	m_imViscousForces[0].set_global_ips(geo.global_ips(), geo.num_ip());
 	m_imViscousForces[1].set_global_ips(geo.global_ips(), geo.num_ip());
-	m_imPressure.set_global_ips(geo.global_ips(), geo.num_ip());
+	m_imDivergence.set_global_ips(geo.global_ips(), geo.num_ip());
 
 
 	//	set pointer to internal variables of elem
@@ -444,7 +444,7 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 	}
 
 	// b) scalar contribution, e.g, p * sum dx_i Phi_sh,i
-	if(m_imPressure.data_given()) {
+	if(m_imDivergence.data_given()) {
 
 		for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 		{	// shape functions (sh=ux, uy, uz)
@@ -453,7 +453,7 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 				for(size_t ip = 0; ip < geo.num_ip(); ++ip)
 				{ 	// loop ip
 					number divUip = geo.global_grad(ip, sh)[i];
-					d(i,sh) += geo.weight(ip)*divUip*m_imPressure[ip];
+					d(i,sh) += geo.weight(ip)*divUip*m_imDivergence[ip];
 				}
 			}
 		}
@@ -463,7 +463,7 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 
 /*
 	// b) pressure part: p(ip) div (V_sh,ip)
-	// if (m_imPressure.data_given()) {
+	// if (m_imDivergence.data_given()) {
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{ // loop IPs
 
@@ -731,12 +731,12 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 				" needs exactly "<<dim<<" symbolic function.");
 
 	//	register imports
-	this->register_import(m_imPressure);
+	this->register_import(m_imDivergence);
 	this->register_import(m_imVolForce);
 	this->register_import(m_imViscousForces[0]);
 	this->register_import(m_imViscousForces[1]);
 
-	m_imPressure.set_rhs_part();
+	m_imDivergence.set_rhs_part();
 	m_imVolForce.set_rhs_part();
 	m_imViscousForces[0].set_rhs_part();
 	m_imViscousForces[1].set_rhs_part();
@@ -974,7 +974,7 @@ ex_divergence_fe(number vValue[],
 				}
 
 				if(bDeriv){
-					assert(0);
+					// assert(0);
 					for(size_t sh = 0; sh < geo.num_sh(); ++sh)
 						for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
 						{
@@ -1180,7 +1180,7 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 
 	// specify computation of linearized defect w.r.t imports
 	m_imVolForce.set_fct(id, this, &T::template lin_def_volume_forces<TElem, TFEGeom>);
-	m_imPressure.set_fct(id, this, &T::template lin_def_pressure<TElem, TFEGeom>);
+	m_imDivergence.set_fct(id, this, &T::template lin_def_pressure<TElem, TFEGeom>);
 	m_imViscousForces[0].set_fct(id, this, &T::template lin_def_viscous_forces0<TElem, TFEGeom>);
 	m_imViscousForces[1].set_fct(id, this, &T::template lin_def_viscous_forces1<TElem, TFEGeom>);
 

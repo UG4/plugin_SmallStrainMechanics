@@ -132,10 +132,10 @@ class SmallStrainMechanicsElemDisc
 		 * p * sum dx_i Phi_sh,i
 		 */
 		///	\{
-		void set_pressure(SmartPtr<CplUserData<number, dim> > user);
-		void set_pressure(number val);
+		void set_div_factor(SmartPtr<CplUserData<number, dim> > user);
+		void set_div_factor(number val);
 #ifdef UG_FOR_LUA
-		void set_pressure(const char* fctName);
+		void set_div_factor(const char* fctName);
 #endif
 		///	\}
 
@@ -323,7 +323,7 @@ class SmallStrainMechanicsElemDisc
 		DataImport<MathVector<dim>, dim > m_imVolForce;
 
 	///	Data import for the reaction term
-		DataImport<number, dim> m_imPressure;
+		DataImport<number, dim> m_imDivergence;
 
 	///	data import for viscous forces
 		DataImport<MathVector<dim>, dim > m_imViscousForces[2];
