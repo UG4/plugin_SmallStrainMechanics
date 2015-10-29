@@ -166,7 +166,6 @@ init_state_variables(const size_t order)
 {
 	SMALL_STRAIN_MECH_PROFILE_BEGIN(SmallStrainMechInit_state_variables);
 
-	//	TODO: is this necessary here???? Or do I only need num_ip?
 	m_order = order;
 	m_lfeID = LFEID(LFEID::LAGRANGE, dim, order);
 	UG_LOG("\n");
@@ -317,8 +316,8 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 
 		// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
 		for (size_t a = 0; a < geo.num_sh(); ++a) 				// loop shape functions
-			for (size_t i = 0; i < (size_t) TDomain::dim; ++i) // loop component
-				for (size_t b = 0; b < geo.num_sh(); ++b) 		// shape functions
+			for (size_t i = 0; i < (size_t) TDomain::dim; ++i) 	// loop component
+				for (size_t b = 0; b < geo.num_sh(); ++b) 		// loop shape functions
 					for (size_t j = 0; j < (size_t) TDomain::dim; ++j) // loop component
 					{
 						number integrandC = 0.0;
@@ -363,7 +362,7 @@ add_jac_M_elem(LocalMatrix& J, const LocalVector& u,
 					for(size_t c = 0; c < (size_t)dim; ++c)
 
 					{
-						J(c, i, c, j) += value*m_massScale;
+						J(c, i, c, j) += value * m_massScale;
 
 					}
 				}
@@ -403,9 +402,6 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 			} //end (i)
 
 	}//end (ip)
-
-
-
 
 }
 
@@ -749,9 +745,6 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 
 	//	update assemble functions
 	set_assemble_funcs();
-
-	// TODO: check, if OutWriter is set (by means of a bool var)
-	// if not set m_spOutWriter to a default instance of IMechOutputWriter!
 }
 
 
@@ -759,9 +752,6 @@ template <typename TDomain>
 SmallStrainMechanicsElemDisc<TDomain>::
 ~SmallStrainMechanicsElemDisc()
 {
-	//if(m_bOutWriter)
-	//	m_spOutWriter->postprocess();
-
 	SmartPtr<TDomain> dom = this->domain();
 	typename TDomain::grid_type& grid = *(dom->grid());
 	m_spMatLaw->clear_attachments(grid);

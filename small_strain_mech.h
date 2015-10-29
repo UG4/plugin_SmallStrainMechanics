@@ -63,6 +63,9 @@ namespace SmallStrainMechanics{
 * <li> D. Braess. Finite Elemente. Theorie, schnelle Loeser und Anwendungen in der
 * <li> Elastizitaetstheorie, Springer
 * <li>
+* <li> R. Prohl. Ein verallgemeinerter Plastizitaetsalgorithmus zur numerischen Behandlung
+* von elasto-plastischen Materialmodellen unter großen Deformationen. Dissertation, Universität Frankfurt (2015).
+* <li>
 * <li> M. Rupp. Berechnung der Resonanzschwingungen einer Gitarrendecke.
 * <li> (Diplomarbeit, 2009, Universitaet Heidelberg)
 * <ul>
