@@ -1,9 +1,3 @@
-/*
- * mat_law_interface_impl.h
- *
- *  Created on: 03.02.2014
- *      Author: raphaelprohl
- */
 
 #ifndef MAT_LAW_INTERFACE_IMPL_H_
 #define MAT_LAW_INTERFACE_IMPL_H_

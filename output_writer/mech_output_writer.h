@@ -1,9 +1,3 @@
-/*
- * mech_output_writer.h
- *
- *  Created on: 06.02.2014
- *      Author: raphaelprohl
- */
 
 #ifndef MECH_OUTPUT_WRITER_H_
 #define MECH_OUTPUT_WRITER_H_

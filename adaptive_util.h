@@ -1,9 +1,3 @@
-/*
- * adaptive_util.h
- *
- *  Created on: 23.03.2015
- *      Author: raphaelprohl
- */
 
 #ifndef ADAPTIVE_UTIL_H_
 #define ADAPTIVE_UTIL_H_

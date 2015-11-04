@@ -1,9 +1,3 @@
-/*
- * prandtl_reuss.h
- *
- *  Created on: 05.02.2014
- *      Author: raphaelprohl
- */
 
 #ifndef PRANDTL_REUSS_H_
 #define PRANDTL_REUSS_H_

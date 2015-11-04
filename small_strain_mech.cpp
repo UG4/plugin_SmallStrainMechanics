@@ -1,9 +1,3 @@
-/*
- * small_strain_mech.cpp
- *
- *  Created on: 16.05.2012
- *      Author: raphaelprohl, Andreas Vogel
- */
 
 #include "small_strain_mech.h"
 

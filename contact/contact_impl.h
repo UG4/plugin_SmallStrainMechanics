@@ -1,9 +1,3 @@
-/*
- * contact_impl.h
- *
- *  Created on: 07.05.2013
- *      Author: raphaelprohl
- */
 
 #ifndef CONTACT_IMPL_H_
 #define CONTACT_IMPL_H_

@@ -1,9 +1,3 @@
-/*
- * small_strain_mech.h
- *
- *  Created on: 16.05.2012
- *      Author: raphaelprohl, Andreas Vogel
- */
 
 #ifndef SMALL_STRAIN_MECH_H_
 #define SMALL_STRAIN_MECH_H_

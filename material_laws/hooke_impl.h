@@ -1,9 +1,3 @@
-/*
- * hooke_impl.h
- *
- *  Created on: 03.02.2014
- *      Author: raphaelprohl
- */
 
 #ifndef HOOKE_IMPL_H_
 #define HOOKE_IMPL_H_
