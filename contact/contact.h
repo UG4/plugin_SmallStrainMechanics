@@ -1,3 +1,9 @@
+/*
+ * contact.h
+ *
+ *  Created on: 06.05.2013
+ *      Author: raphaelprohl
+ */
 
 #ifndef CONTACT_H_
 #define CONTACT_H_

@@ -1,3 +1,9 @@
+/*
+ * small_strain_mech_plugin.cpp
+ *
+ *  Created on: 16.05.2012
+ *      Author: raphaelprohl, Andreas Vogel
+ */
 
 #include "bridge/util.h"
 #include "bridge/util_domain_algebra_dependent.h"
