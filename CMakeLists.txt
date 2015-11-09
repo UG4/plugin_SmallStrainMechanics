@@ -34,25 +34,26 @@
 # The small strain mechanics plugin.
 ################################################################################\
 
+set(pluginName	SmallStrainMechanics)
+set(SOURCES		small_strain_mech.cpp
+				small_strain_mech_plugin.cpp)
+
+
+################################################################################
+# The code below doesn't have to be changed (usually)
+################################################################################
 cmake_minimum_required(VERSION 2.6)
 
-project(SMALL_STRAIN_MECHANICS)
+project(UG_PLUGIN_${pluginName})
 
 # include the definitions and dependencies for ug-plugins.
-include("../../../cmake/ug_plugin_includes.cmake")
-
-
-# sources
-set(SOURCES	small_strain_mech.cpp
-			small_strain_mech_plugin.cpp)
-
-
-
+include(${UG_ROOT_CMAKE_PATH}/ug_plugin_includes.cmake)
 
 if(buildEmbeddedPlugins)
 	# add the sources to ug4's sources
-	EXPORTSOURCES(plugins/core/small_strain_mechanics ${SOURCES})
+	EXPORTSOURCES(${CMAKE_CURRENT_SOURCE_DIR} ${SOURCES})
 else(buildEmbeddedPlugins)
-	add_library(SmallStrainMechanics SHARED ${SOURCES})
-	target_link_libraries (SmallStrainMechanics ug4)
+	# create a shared library from the sources and link it against ug4.
+	add_library(${pluginName} SHARED ${SOURCES})
+	target_link_libraries (${pluginName} ug4)
 endif(buildEmbeddedPlugins)
