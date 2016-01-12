@@ -53,7 +53,7 @@ namespace SmallStrainMechanics{
 
 /** 
  *  \defgroup small_strain_mechanics Small Strain Mechanics
- *  \ingroup plugins_core
+ *  \ingroup plugins
  *  This is a plugin for Small Strain Mechanics functionality.
  *  \{
  */
