@@ -33,7 +33,7 @@
 #ifndef ADAPTIVE_UTIL_H_
 #define ADAPTIVE_UTIL_H_
 
-#include "lib_grid/algorithms/refinement/refiner_interface.h"
+#include "lib_grid/refinement/refiner_interface.h"
 
 namespace ug{
 namespace SmallStrainMechanics{

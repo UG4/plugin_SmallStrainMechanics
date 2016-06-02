@@ -33,7 +33,7 @@
 #ifndef ADAPTIVE_UTIL_IMPL_H_
 #define ADAPTIVE_UTIL_IMPL_H_
 
-#include "lib_grid/algorithms/refinement/refiner_interface.h"
+#include "lib_grid/refinement/refiner_interface.h"
 #include "adaptive_util.h"
 
 namespace ug{
