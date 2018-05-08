@@ -340,7 +340,8 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 		}
 
 		// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
-		for (size_t a = 0; a < geo.num_sh(); ++a) 				// loop shape functions
+		for (size_t a = 0; a < geo.num_sh(); ++a) 	{			// loop shape functions
+			// UG_LOG("add_jac_A_elem: sh="<<a);
 			for (size_t i = 0; i < (size_t) TDomain::dim; ++i) 	// loop component
 				for (size_t b = 0; b < geo.num_sh(); ++b) 		// loop shape functions
 					for (size_t j = 0; j < (size_t) TDomain::dim; ++j) // loop component
@@ -357,11 +358,11 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 							}
 
 						J(i, a, j, b) += integrandC * geo.weight(ip);
-
+						// if (a>=dim || b>=dim) { UG_LOG("integrad="<< a ,<< ","<< b <<"="<<integrandC<< "*" <<geo.weight(ip)<<std::endl);}
 						// Du:p*Id = p*Id:Dv goes here..
 
 					} //end (j)
-
+		}
 	} //end(ip)
 }
 
@@ -414,7 +415,10 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
 		m_spMatLaw->stressTensor(sigma, ip, GradU);
 
-		for (size_t sh = 0; sh < geo.num_sh(); ++sh) // loop shape functions
+		for (size_t sh = 0; sh < geo.num_sh(); ++sh)
+		{// loop shape functions
+
+			//UG_LOG("add_def_A_elem: sh="<<sh);
 			for (size_t i = 0; i < num_fct(); ++i) // loop components
 			{
 				number innerForcesIP = 0.0;
@@ -422,10 +426,12 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 				//	i-th comp. of INTERNAL FORCES at node a:
 				for (size_t j = 0; j < (size_t) dim; ++j)
 					innerForcesIP += sigma[i][j] * geo.global_grad(ip, sh)[j];
+				//if (sh>=dim) {UG_LOG("add_def_A_elem: innerForcesIP="<<innerForcesIP << std::endl);}
+
 
 				d(i, sh) += geo.weight(ip) * innerForcesIP;
 			} //end (i)
-
+		}
 	}//end (ip)
 
 }
@@ -447,7 +453,7 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
-	// a) volume forces: $$  \vec F*Phi =(grad p)*Phi$$
+	// a) volume forces, e.g. $$ \vec F*Phi =(grad p)*Phi$$
 	if(m_imVolForce.data_given()) {
 		// loop ip
 		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
@@ -468,13 +474,13 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 	if(m_imDivergence.data_given()) {
 
 		for(size_t sh = 0; sh < geo.num_sh(); ++sh)
-		{	// shape functions (sh=ux, uy, uz)
+		{	// for all shape functions
 			for(size_t i = 0; i < num_fct(); ++i)
-			{ //  component (i=1,2,3)
+			{ // for all components (i=1,2,3)
 				for(size_t ip = 0; ip < geo.num_ip(); ++ip)
-				{ 	// loop ip
-					number divUip = geo.global_grad(ip, sh)[i];
-					d(i,sh) += geo.weight(ip)*divUip*m_imDivergence[ip];
+				{ 	// for all integration points
+					number ipGradI = geo.global_grad(ip, sh)[i];
+					d(i,sh) += geo.weight(ip)*ipGradI*m_imDivergence[ip];
 				}
 			}
 		}
@@ -586,9 +592,9 @@ lin_def_volume_forces(const LocalVector& u,
 	static const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 	UG_ASSERT(nip == geo.num_ip(), "Number of integration points does not match!");
 
-	//	loop integration points
 	for(size_t ip = 0; ip < geo.num_ip(); ++ip)
-	{
+	{ //	loop integration points
+
 		for (size_t i = 0; i < num_fct(); ++i)
 		{ // loop component
 
@@ -742,9 +748,9 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 			IElemDisc<TDomain> (functions, subsets),
 			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_spOutWriter(SPNULL),
 			m_bOutWriter(false), m_bMatLawPassedToOutWriter(false),
+			m_exDivergence(new DataExport<number, dim>(functions)),
 			m_exDisplacement(new DataExport<MathVector<dim>, dim>(functions)),
-			//m_exDisplacement(new VectorDataExport<dim>(functions)),
-			m_exDivergence(new DataExport<number, dim>(functions))
+			m_exStressTensor(new DataExport<MathMatrix<dim,dim>, dim>(functions))
 {
 	//	check number of functions
 	if (this->num_fct() != (size_t) dim)
@@ -786,6 +792,116 @@ SmallStrainMechanicsElemDisc<TDomain>::
 ////////////////////////////////////////////////////////////////////////////////
 //	 export functions
 ////////////////////////////////////////////////////////////////////////////////
+
+///	computes the stresses
+template <typename TDomain>
+template <typename TElem, typename TFEGeom>
+void  SmallStrainMechanicsElemDisc<TDomain>::
+ex_stress_fe(MathMatrix<dim,dim> vValue[],
+			const MathVector<dim> vGlobIP[],
+			number time, int si,
+			const LocalVector& u,
+			GridObject* elem,
+			const MathVector<dim> vCornerCoords[],
+			const MathVector<TFEGeom::dim> vLocIP[],
+			const size_t nip,
+			bool bDeriv,
+			std::vector<std::vector<MathMatrix<dim,dim> > > vvvDeriv[])
+{
+	//	request geometry
+	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
+
+	//	reference element
+	typedef typename reference_element_traits<TElem>::reference_element_type
+			ref_elem_type;
+
+	//	reference dimension
+	static const int refDim = reference_element_traits<TElem>::dim;
+
+	//	reference object id
+	static const ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
+
+	UG_ASSERT(bDeriv==false ,"Huhh: Some one was lazy - please implement derivatives!");
+
+
+	// a) Cauchy tensor
+	MathMatrix<dim, dim> GradU;
+
+	//	FE
+	if(vLocIP == geo.local_ips())
+	{
+
+
+		//	Loop ip
+		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{
+			MathMatrix<dim, dim> &sigmaIP = vValue[ip];
+
+			//	compute cauchy-stress tensor sigma at a ip
+			m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
+			m_spMatLaw->stressTensor(sigmaIP, ip, GradU);
+
+		}
+	} else {
+		// 	general case
+		try{
+			//	request for trial space
+			const LocalShapeFunctionSet<refDim>& rTrialSpace = LocalFiniteElementProvider::get<refDim>(roid, m_lfeID);
+
+			//	number of shape functions
+			const size_t numSH = rTrialSpace.num_sh();
+
+			//	storage for gradient function at ip
+			std::vector<MathVector<refDim> > vLocGrad(numSH);
+			MathVector<refDim> locGradA, globGradA;
+
+			//	Reference Mapping
+			MathMatrix<dim, refDim> JTInv;
+			ReferenceMapping<ref_elem_type, dim> mapping(vCornerCoords);
+
+			//	loop requested ips
+			for(size_t ip = 0; ip < nip; ++ip)
+			{
+				// computing Cauchy stress sigma:
+				MathMatrix<dim, dim> &sigmaIP = vValue[ip];
+				sigmaIP = 0.0;
+
+				//	evaluate shape gradients at ip
+				rTrialSpace.grads(vLocGrad, vLocIP[ip]);
+				mapping.jacobian_transposed_inverse(JTInv, vLocIP[ip]);
+
+				// loop components
+				for (size_t a = 0; a < (size_t) dim; ++a)
+				{
+					//	compute grad at ip
+					VecSet(locGradA, 0.0);
+					for(size_t sh = 0; sh < numSH; ++sh)
+					{
+						VecScaleAppend(locGradA, u(a, sh), vLocGrad[sh]);
+					}
+
+					//	compute global grad
+					MatVecMult(globGradA, JTInv, locGradA);
+					UG_ASSERT(0, "Not implemented!");
+					// contribution to sigma
+
+
+
+				}
+
+				if(bDeriv)
+				{ UG_ASSERT(0, "Not implemented!"); }
+			}
+
+		}
+		UG_CATCH_THROW("SmallStrainMechanicsElemDisc::ex_divergence_fe: trial space missing.");	UG_ASSERT(0, "Not implemented!");
+	}
+
+
+
+
+}
+
 
 ///	computes the displacement
 template <typename TDomain>
@@ -990,12 +1106,21 @@ ex_divergence_fe(number vValue[],
 
 				if(bDeriv){
 					// assert(0);
+					MathVector<refDim> globGradSH;
 					for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+					{
+						//	compute global grad
+						MatVecMult(globGradSH, JTInv, vLocGrad[sh]);
+
 						for (size_t alpha = 0; alpha < (size_t) dim; ++alpha)
 						{
-							vvvDeriv[ip][alpha][sh] /*= 0.0;
-							vvvDeriv[ip][alpha][sh][alpha] */= geo.global_grad(ip, sh)[alpha];
+							// vvvDeriv[ip][alpha][sh] /*= 0.0;
+							// vvvDeriv[ip][alpha][sh][alpha] */= geo.global_grad(ip, sh)[alpha];
+
+							vvvDeriv[ip][alpha][sh] = globGradSH[alpha];
+
 						}
+					}
 				}
 			}
 
@@ -1201,8 +1326,10 @@ void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 
 
 	// exports
-	m_exDisplacement->  template set_fct<T,refDim>(id, this, &T::template ex_displacement_fe<TElem, TFEGeom>);
 	m_exDivergence->    template set_fct<T,refDim>(id, this, &T::template ex_divergence_fe<TElem, TFEGeom>);
+	m_exDisplacement->  template set_fct<T,refDim>(id, this, &T::template ex_displacement_fe<TElem, TFEGeom>);
+	m_exStressTensor->  template set_fct<T,refDim>(id, this, &T::template ex_stress_fe<TElem, TFEGeom>);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////

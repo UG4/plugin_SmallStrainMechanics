@@ -360,14 +360,33 @@ class SmallStrainMechanicsElemDisc
 	public:
 			typedef SmartPtr<CplUserData<number, dim> > NumberExport;
 			typedef SmartPtr<CplUserData<MathVector<dim>, dim> > VectorExport;
+			typedef SmartPtr<CplUserData<MathMatrix<dim, dim>, dim> > MatrixExport;
 
-			VectorExport displacement() {return m_exDisplacement;}
 			NumberExport divergence() {return m_exDivergence;}
+			VectorExport displacement() {return m_exDisplacement;}
+			MatrixExport stress() {return m_exStressTensor;}
+
 
 	protected:
 		///	Export
-			SmartPtr<DataExport<MathVector<dim>, dim> >  m_exDisplacement;
 			SmartPtr<DataExport<number, dim> > m_exDivergence;
+			SmartPtr<DataExport<MathVector<dim>, dim> >  m_exDisplacement;
+			SmartPtr<DataExport<MathMatrix<dim,dim>, dim> >  m_exStressTensor;
+
+
+			///	computes the divergence of displacement
+			template <typename TElem, typename TFEGeom>
+			void ex_divergence_fe(number vValue[],
+					const MathVector<dim> vGlobIP[],
+					number time, int si,
+					const LocalVector& u,
+					GridObject* elem,
+					const MathVector<dim> vCornerCoords[],
+					const MathVector<TFEGeom::dim> vLocIP[],
+					const size_t nip,
+					bool bDeriv,
+					std::vector<std::vector<number> > vvvDeriv[]);
+
 
 			///	computes the displacement
 			template <typename TElem, typename TFEGeom>
@@ -382,18 +401,19 @@ class SmallStrainMechanicsElemDisc
 					bool bDeriv,
 					std::vector<std::vector<MathVector<dim> > > vvvDeriv[]);
 
-		///	computes the divergence of displacement
-		template <typename TElem, typename TFEGeom>
-		void ex_divergence_fe(number vValue[],
-				const MathVector<dim> vGlobIP[],
-				number time, int si,
-				const LocalVector& u,
-				GridObject* elem,
-				const MathVector<dim> vCornerCoords[],
-				const MathVector<TFEGeom::dim> vLocIP[],
-				const size_t nip,
-				bool bDeriv,
-				std::vector<std::vector<number> > vvvDeriv[]);
+			///	computes the stress
+			template <typename TElem, typename TFEGeom>
+			void ex_stress_fe(MathMatrix<dim,dim> vValue[],
+					const MathVector<dim> vGlobIP[],
+					number time, int si,
+					const LocalVector& u,
+					GridObject* elem,
+					const MathVector<dim> vCornerCoords[],
+					const MathVector<TFEGeom::dim> vLocIP[],
+					const size_t nip,
+					bool bDeriv,
+					std::vector<std::vector<MathMatrix<dim,dim> > > vvvDeriv[]);
+
 
 };
 
