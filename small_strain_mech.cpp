@@ -31,6 +31,7 @@
  */
 
 #include "small_strain_mech.h"
+#include "material_laws/damage_law.h"
 
 // for various user data
 #include "bindings/lua/lua_user_data.h"
@@ -154,6 +155,15 @@ set_viscous_forces(SmartPtr<CplUserData<MathVector<dim>, dim> > user1, SmartPtr<
 	m_imViscousForces[1].set_data(user2);
 }
 
+
+template<typename TDomain>
+void SmallStrainMechanicsElemDisc<TDomain>::
+set_compress_factor(number val)
+{
+	m_imCompressIndex.set_data(make_sp(new ConstUserNumber<dim>(val)));
+}
+
+
 //////////////////////////////////
 
 template<typename TDomain>
@@ -206,7 +216,13 @@ init_state_variables(const size_t order)
 	//	clears and then attaches the attachments for the internal variables
 	//	to the grid
 	SmartPtr<TDomain> dom = this->domain();
+	if(dom.invalid())
+		UG_THROW("Domain not provided for SmallStrainMechanics::init_state_variables");
+
 	typename TDomain::grid_type& grid = *(dom->grid());
+
+	if(m_spMatLaw.invalid())
+		UG_THROW("Material Law not provided for SmallStrainMechanics::init_state_variables");
 
 	m_spMatLaw->clear_attachments(grid);
 	m_spMatLaw->attach_internal_vars(grid);
@@ -277,6 +293,7 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 	static const int refDim = TElem::dim;
 	m_imVolForce.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 	m_imDivergence.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
+	m_imCompressIndex.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
 	m_imViscousForces[0].template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 	m_imViscousForces[1].template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 }
@@ -305,6 +322,7 @@ prep_elem(const LocalVector& u, GridObject* elem, const ReferenceObjectID roid, 
 	m_imViscousForces[0].set_global_ips(geo.global_ips(), geo.num_ip());
 	m_imViscousForces[1].set_global_ips(geo.global_ips(), geo.num_ip());
 	m_imDivergence.set_global_ips(geo.global_ips(), geo.num_ip());
+	m_imCompressIndex.set_global_ips(geo.global_ips(), geo.num_ip());
 
 
 	//	set pointer to internal variables of elem
@@ -329,6 +347,19 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 		m_spElastTensor = m_spMatLaw->elasticityTensor();
 	}
 
+	number f = 1.0;
+//	number* psi0 = NULL;
+	DamageLaw<TDomain>* pDamageLaw = dynamic_cast<DamageLaw<TDomain>*>(m_spMatLaw.get());
+	if(pDamageLaw != NULL)
+	{
+		f = pDamageLaw->f_on_curr_elem();
+//		psi0 = &pDamageLaw->psi0_on_curr_elem();
+	}
+//	if(psi0) (*psi0) = 0.0;
+
+//	MathMatrix<dim,dim> strainTens;
+//	number volElem = 0.0;
+
 	MathMatrix<dim, dim> GradU;
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
 	{
@@ -337,6 +368,9 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 			//	material law with non constant elasticity tensors
 			m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
 			m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
+			
+//			if(pDamageLaw)
+//				pDamageLaw->strainTensor(strainTens, GradU);
 		}
 
 		// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
@@ -352,9 +386,15 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 						for (size_t K = 0; K < (size_t) dim; ++K)
 							for (size_t L = 0; L < (size_t) dim; ++L)
 							{
-								integrandC += geo.global_grad(ip, a)[K]
+								integrandC += f 
+										* geo.global_grad(ip, a)[K]
 										* (*m_spElastTensor)[i][K][j][L]
 										* geo.global_grad(ip, b)[L];
+
+//								if(psi0){
+//									(*psi0) +=  0.5 * strainTens(i, K) *  (*m_spElastTensor)[i][K][j][L] * strainTens(j, L) * geo.weight(ip);
+//									volElem +=  geo.weight(ip);
+//								}
 							}
 
 						J(i, a, j, b) += integrandC * geo.weight(ip);
@@ -364,6 +404,32 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 					} //end (j)
 		}
 	} //end(ip)
+
+//	if(psi0){
+//		(*psi0) = (*psi0) / volElem;
+//	}
+
+	if(m_imCompressIndex.data_given()) {
+
+		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{ 	// for all integration points					
+
+			for(size_t i2 = 0; i2 < num_fct(); ++i2){
+				for(size_t sh2 = 0; sh2 < geo.num_sh(); ++sh2)
+			{
+
+			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+			{	// for all shape functions
+				for(size_t i = 0; i < num_fct(); ++i)
+				{ // for all components (i=1,2,3)
+					J(i,sh,i2,sh2) += geo.weight(ip) * m_imCompressIndex[ip] *
+								geo.global_grad(ip, sh2)[i2] * geo.global_grad(ip, sh)[i];
+				}
+			}
+			}}
+		}
+	}
+
 }
 
 //	assemble mass jacobian
@@ -407,6 +473,27 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 	//	request geometry
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
+
+
+	////////////// for brittle //////////////////
+	number f = 1.0;
+	number* psi0 = NULL;
+	DamageLaw<TDomain>* pDamageLaw = dynamic_cast<DamageLaw<TDomain>*>(m_spMatLaw.get());
+	if(pDamageLaw != NULL)
+	{
+		f = pDamageLaw->f_on_curr_elem();
+		psi0 = &pDamageLaw->psi0_on_curr_elem();
+	}
+	if(psi0) (*psi0) = 0.0;
+
+	MathMatrix<dim,dim> strainTens;
+	number volElem = 0.0;
+	////////////// for brittle //////////////////
+
+
+
+
+
 	// a) Cauchy tensor
 	MathMatrix<dim, dim> sigma, GradU;
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
@@ -414,6 +501,13 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 		//	compute cauchy-stress tensor sigma at a ip
 		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
 		m_spMatLaw->stressTensor(sigma, ip, GradU);
+
+		////////////// for brittle //////////////////
+		m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
+		if(pDamageLaw)
+			pDamageLaw->strainTensor(strainTens, GradU);
+		////////////// for brittle //////////////////
+
 
 		for (size_t sh = 0; sh < geo.num_sh(); ++sh)
 		{// loop shape functions
@@ -428,11 +522,57 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 					innerForcesIP += sigma[i][j] * geo.global_grad(ip, sh)[j];
 				//if (sh>=dim) {UG_LOG("add_def_A_elem: innerForcesIP="<<innerForcesIP << std::endl);}
 
-
 				d(i, sh) += geo.weight(ip) * innerForcesIP;
+
+				////////////// for brittle //////////////////
+				if(psi0){
+					for (size_t j = 0; j < (size_t) dim; ++j)
+						for (size_t K = 0; K < (size_t) dim; ++K)
+							for (size_t L = 0; L < (size_t) dim; ++L)
+								(*psi0) +=  0.5 * strainTens(i, K) *  (*m_spElastTensor)[i][K][j][L] * strainTens(j, L) * geo.weight(ip);
+
+
+					volElem +=  geo.weight(ip);
+				}
+				////////////// for brittle //////////////////
+
 			} //end (i)
 		}
 	}//end (ip)
+
+
+
+	////////////// for brittle //////////////////
+	if(psi0){
+		(*psi0) = (*psi0) / volElem;
+	}
+	////////////// for brittle //////////////////
+
+
+
+
+
+	if(m_imCompressIndex.data_given()) {
+
+		for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+		{ 	// for all integration points					
+			number divU = 0.0;
+			for(size_t i = 0; i < num_fct(); ++i)
+				for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+				{	
+					divU += u(i,sh) * geo.global_grad(ip, sh)[i];
+				}
+
+			for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+			{	// for all shape functions
+				for(size_t i = 0; i < num_fct(); ++i)
+				{ // for all components (i=1,2,3)
+					d(i,sh) += geo.weight(ip) * m_imCompressIndex[ip] *
+								divU * geo.global_grad(ip, sh)[i];
+				}
+			}
+		}
+	}
 
 }
 
@@ -759,6 +899,7 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 
 	//	register imports
 	this->register_import(m_imDivergence);
+	this->register_import(m_imCompressIndex);
 	this->register_import(m_imVolForce);
 	this->register_import(m_imViscousForces[0]);
 	this->register_import(m_imViscousForces[1]);

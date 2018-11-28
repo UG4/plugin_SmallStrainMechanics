@@ -167,6 +167,8 @@ class SmallStrainMechanicsElemDisc
 #endif
 		///	\}
 
+		void set_compress_factor(number val);
+
 		/**
 		 * This methods sets rhs for "viscous stresses"
 		 * v0^T (gradPhi +gradPhi^T) v1
@@ -352,6 +354,9 @@ class SmallStrainMechanicsElemDisc
 
 	///	Data import for the reaction term
 		DataImport<number, dim> m_imDivergence;
+
+	///	Data import for the compressibility term
+		DataImport<number, dim> m_imCompressIndex;
 
 	///	data import for viscous forces
 		DataImport<MathVector<dim>, dim > m_imViscousForces[2];
