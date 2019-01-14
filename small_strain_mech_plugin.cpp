@@ -904,6 +904,7 @@ class DamageFunctionUpdater
 			////////////////////////////////////////////////////////////////////////////
 
 			const size_t numElem = m_vIndex.size();
+			const number sqrtNumElem = sqrt(numElem);
 
 			SmartPtr<GridFunction<TDomain, CPUAlgebra> > spLambdaOld = spF->clone();
 			SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPhi = spF->clone();
@@ -921,10 +922,13 @@ class DamageFunctionUpdater
 			write_debug(spF, "F", call, iterCnt);
 ///////////// BEBUG (end) ///////////////
 
+			number maxPhi = std::numeric_limits<number>::max();
 
-			while(normPhi > eps * numElem && (iterCnt++ <= maxIter) )
+//			while(normPhi > eps * sqrtNumElem && (iterCnt++ <= maxIter) )
+			while(maxPhi > eps && (iterCnt++ <= maxIter) )
 			{
 				normPhi = 0.0;
+				maxPhi  = 0.0;
 
 				for(size_t i = 0; i < m_vIndex.size(); ++i)
 					(*spLambdaOld)[i] = Lambda_ByPartIntegral(i, spF);
@@ -982,6 +986,7 @@ class DamageFunctionUpdater
 ////////////// BEBUG (end) ///////////////
 
 						normPhi += phi*phi;
+						maxPhi = std::max(maxPhi, phi);
 					}
 				}
 

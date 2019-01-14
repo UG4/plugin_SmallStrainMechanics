@@ -909,6 +909,8 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 	m_imViscousForces[0].set_rhs_part();
 	m_imViscousForces[1].set_rhs_part();
 
+	m_imVolForce.set_comp_lin_defect(false);
+
 	//	set defaults
 	m_order = 1;
 	m_bQuadOrderUserDef = false;
