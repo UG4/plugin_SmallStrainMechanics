@@ -111,6 +111,204 @@ strainTensor(MathMatrix<dim,dim>& strainTens, const MathMatrix<dim, dim>& GradU)
 			strainTens[i][j] = 0.5 * (GradU[i][j] + GradU[j][i]);
 }
 
+
+
+template <typename TDomain>
+void
+HookeLaw<TDomain>::
+set_elasticity_tensor_orthotropic_plain_stress_E_G_nu(
+const number E1, const number E2, //const number E3, 
+const number G12, //const number G13, const number G23, 
+const number v12 //const number v13, const number v23
+)
+{
+	if(dim != 2) UG_THROW("Orthotrope Tensor PLAIN STRESS only for 2 dimensions" );
+
+	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
+
+	//  setze alle wWerte auf 0
+	for (size_t i = 0; i < (size_t) dim; ++i)
+		for (size_t j = 0; j < (size_t) dim; ++j)
+			for (size_t k = 0; k < (size_t) dim; ++k)
+				for (size_t l = 0; l < (size_t) dim; ++l)
+					elastTensorFunct[i][j][k][l] = 0.0;
+
+
+	const number v21 = (E2/E1) * v12;
+	//const number v31 = (E3/E1) * v13;
+	//const number v32 = (E3/E2) * v23;
+
+	const number D = 1 - v12*v21;
+
+
+	// Tensor mit Werte fuellen
+	//                 i  j  k  l
+	elastTensorFunct[0][0][0][0] = E1/D; // C11
+	elastTensorFunct[1][1][1][1] = E2/D; // C22
+
+	elastTensorFunct[0][0][1][1] = 
+	elastTensorFunct[1][1][0][0] = E2*v12/D; // = C12
+
+	elastTensorFunct[0][1][0][1] = 
+	elastTensorFunct[1][0][0][1] = 
+	elastTensorFunct[0][1][1][0] = 
+	elastTensorFunct[1][0][1][0] = 2*G12; // C66
+
+	//	remembering the elasticity tensor
+	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
+	m_spElastTensorFunct = spElastTens;
+
+	StringTableStream sts;
+	std::stringstream ss;
+
+	ss << "Hooke constants Orthotrope (PLAIN STRESS):\n";
+	sts.clear();
+	sts << " E1 = " << E1 << "E2 = " << E2 << "\n";
+	sts << " v12 = " << v12 << "v21 = " << v21 << "\n";
+	sts << "  G12 = " << G12 << "\n";
+	ss << sts;
+	m_materialConfiguration = ss.str();
+	UG_LOG("\nset_elasticity_tensor_orthotropic " << ConfigShift(m_materialConfiguration) << "\n");
+}
+
+
+template <typename TDomain>
+void
+HookeLaw<TDomain>::
+set_elasticity_tensor_orthotropic_plain_strain_E_G_nu(
+const number E1, const number E2, const number E3, 
+const number G12, const number G13, const number G23, 
+const number v12, const number v13, const number v23
+)
+{
+	if(dim != 2) UG_THROW("Orthotrope Tensor PLAIN STRAIN only for 2 dimensions" );
+
+	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
+
+	//  setze alle wWerte auf 0
+	for (size_t i = 0; i < (size_t) dim; ++i)
+		for (size_t j = 0; j < (size_t) dim; ++j)
+			for (size_t k = 0; k < (size_t) dim; ++k)
+				for (size_t l = 0; l < (size_t) dim; ++l)
+					elastTensorFunct[i][j][k][l] = 0.0;
+
+
+	const number v21 = (E2/E1) * v12;
+	const number v31 = (E3/E1) * v13;
+	const number v32 = (E3/E2) * v23;
+
+	const number D = 1 - v12*v21 - v13*v31 - v23*v32 - 2*v12*v23*v31;
+
+
+	// Tensor mit Werte fuellen
+	//                 i  j  k  l
+	elastTensorFunct[0][0][0][0] = E1*(1-v23*v32)/D; // C11
+	elastTensorFunct[1][1][1][1] = E2*(1-v13*v31)/D; // C22
+
+	elastTensorFunct[0][0][1][1] = 
+	elastTensorFunct[1][1][0][0] = E2*(v13*v32+v12)/D; // = C12
+
+	elastTensorFunct[0][1][0][1] = 
+	elastTensorFunct[1][0][0][1] = 
+	elastTensorFunct[0][1][1][0] = 
+	elastTensorFunct[1][0][1][0] = 2*G12; // C66
+
+	//	remembering the elasticity tensor
+	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
+	m_spElastTensorFunct = spElastTens;
+
+	StringTableStream sts;
+	std::stringstream ss;
+
+	ss << "Hooke constants Orthotrope (PLAIN STRAIN):\n";
+	sts.clear();
+	sts << " E1 = " << E1 << "E2 = " << E2 << "E3 = " << E3 << "\n";
+	sts << " v12 = " << v12 << "v23 = " << v23 << "v13 = " << v13 << "\n";
+	sts << "  G12 = " << G12 << "G23 = " << G23 << "G13 = " << G13 << "\n";
+	ss << sts;
+	m_materialConfiguration = ss.str();
+	UG_LOG("\nset_elasticity_tensor_orthotropic " << ConfigShift(m_materialConfiguration) << "\n");
+}
+
+
+
+template <typename TDomain>
+void
+HookeLaw<TDomain>::
+set_elasticity_tensor_orthotropic_E_G_nu(
+const number E1, const number E2, const number E3, 
+const number G12, const number G13, const number G23, 
+const number v12, const number v13, const number v23
+)
+{
+	if(dim != 3) UG_THROW("Orthotrope Tensor only for 3 dimensions" );
+
+	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
+
+	//  setze alle wWerte auf 0
+	for (size_t i = 0; i < (size_t) dim; ++i)
+		for (size_t j = 0; j < (size_t) dim; ++j)
+			for (size_t k = 0; k < (size_t) dim; ++k)
+				for (size_t l = 0; l < (size_t) dim; ++l)
+					elastTensorFunct[i][j][k][l] = 0.0;
+
+
+	const number v21 = (E2/E1) * v12;
+	const number v31 = (E3/E1) * v13;
+	const number v32 = (E3/E2) * v23;
+
+	const number D = 1 - v12*v21 - v13*v31 - v23*v32 - 2*v12*v23*v31;
+
+
+	// Tensor mit Werte fuellen
+	//                 i  j  k  l
+	elastTensorFunct[0][0][0][0] = E1*(1-v23*v32)/D; // C11
+	elastTensorFunct[1][1][1][1] = E2*(1-v13*v31)/D; // C22
+	elastTensorFunct[2][2][2][2] = E3*(1-v12*v21)/D; // C33
+
+	elastTensorFunct[0][0][1][1] = 
+	elastTensorFunct[1][1][0][0] = E2*(v13*v32+v12)/D; // = C12
+
+	elastTensorFunct[0][0][2][2] = 
+	elastTensorFunct[2][2][0][0] = E3*(v12*v23+v13)/D; // = C13
+
+	elastTensorFunct[1][1][2][2] = 
+	elastTensorFunct[2][2][1][1] = E3*(v21*v13+v23)/D; // = C23
+
+
+	elastTensorFunct[1][2][1][2] = 
+	elastTensorFunct[1][2][2][1] = 
+	elastTensorFunct[2][1][1][2] = 
+	elastTensorFunct[2][1][2][1] = 2*G23; // C44
+
+	elastTensorFunct[2][0][2][0] = 
+	elastTensorFunct[0][2][2][0] = 
+	elastTensorFunct[2][0][0][2] = 
+	elastTensorFunct[0][2][0][2] = 2*G13; // C55
+
+	elastTensorFunct[0][1][0][1] = 
+	elastTensorFunct[1][0][0][1] = 
+	elastTensorFunct[0][1][1][0] = 
+	elastTensorFunct[1][0][1][0] = 2*G12; // C66
+
+	//	remembering the elasticity tensor
+	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
+	m_spElastTensorFunct = spElastTens;
+
+	StringTableStream sts;
+	std::stringstream ss;
+
+	ss << "Hooke constants Orthotrope:\n";
+	sts.clear();
+	sts << " E1 = " << E1 << "E2 = " << E2 << "E3 = " << E3 << "\n";
+	sts << " v12 = " << v12 << "v23 = " << v23 << "v13 = " << v13 << "\n";
+	sts << "  G12 = " << G12 << "G23 = " << G23 << "G13 = " << G13 << "\n";
+	ss << sts;
+	m_materialConfiguration = ss.str();
+	UG_LOG("\nset_elasticity_tensor_orthotropic " << ConfigShift(m_materialConfiguration) << "\n");
+}
+
+
 template <typename TDomain>
 void
 HookeLaw<TDomain>::
@@ -122,7 +320,7 @@ const number C11, const number C12, const number C13,
 									const number C55,
 											const number C66 )
 {
-	UG_ASSERT( dim==3, "Orthotrope Tensor only for 3 dimensions" );
+	if(dim != 3) UG_THROW("Orthotrope Tensor only for 3 dimensions" );
 
 	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
 
@@ -153,7 +351,6 @@ const number C11, const number C12, const number C13,
 
 	elastTensorFunct[1][2][1][2] = C44;
 	elastTensorFunct[1][2][2][1] = C44;
-
 	elastTensorFunct[2][1][1][2] = C44;
 	elastTensorFunct[2][1][2][1] = C44;
 
@@ -201,7 +398,7 @@ const number C11, const number C12, const number C13,
 	sts << sts.empty_col(5)  << C66 << "\n";
 	ss << sts;
 
-	ss << "Hooke constants:\n";
+	ss << "Hooke constants Orthotrope:\n";
 	sts.clear();
 	sts << " E1 = " << E1 << "E2 = " << E2 << "E3 = " << E3 << "\n";
 	sts << " v12 = " << v12 << "v23 = " << v23 << "v13 = " << v13 << "\n";
@@ -209,6 +406,58 @@ const number C11, const number C12, const number C13,
 	ss << sts;
 	m_materialConfiguration = ss.str();
 	UG_LOG("\nset_elasticity_tensor_orthotropic " << ConfigShift(m_materialConfiguration) << "\n");
+}
+
+
+template <typename TDomain>
+void
+HookeLaw<TDomain>::
+set_hooke_elasticity_tensor_plain_stress_E_nu(const number E, const number nu)
+{
+	if(dim != 2) UG_THROW("Plain Stress Tensor only for 2 dimensions" );
+
+	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
+
+	//  setze alle wWerte auf 0
+	for (size_t i = 0; i < (size_t) dim; ++i)
+		for (size_t j = 0; j < (size_t) dim; ++j)
+			for (size_t k = 0; k < (size_t) dim; ++k)
+				for (size_t l = 0; l < (size_t) dim; ++l)
+					elastTensorFunct[i][j][k][l] = 0.0;
+
+	// Tensor mit Werte fuellen
+	//                 i  j  k  l
+	elastTensorFunct[0][0][0][0] = E/(1-nu*nu); // C11
+	elastTensorFunct[1][1][1][1] = E/(1-nu*nu); // C22
+
+	elastTensorFunct[0][0][1][1] = 
+	elastTensorFunct[1][1][0][0] = (E*nu)/(1-nu*nu); // = C12 = C21
+
+	elastTensorFunct[0][1][0][1] = 
+	elastTensorFunct[1][0][0][1] = 
+	elastTensorFunct[0][1][1][0] = 
+	elastTensorFunct[1][0][1][0] = E*(1-nu)/(1-nu*nu); // C33
+
+	//	remembering the elasticity tensor
+	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
+	m_spElastTensorFunct = spElastTens;
+
+	std::stringstream ss;
+	ss << "Hooke Elasticity Isotropic (PLAIN STRESS): \n";
+	ss << "  young modulus (Elastizitaetsmodul): " << E << "\n";
+	ss << "  poisson ratio (Querkontraktionszahl) v: " << nu << "\n";
+	ss << "  Elasticity Tensor = " << elastTensorFunct << "\n";
+	m_materialConfiguration = ss.str();
+}
+
+template <typename TDomain>
+void
+HookeLaw<TDomain>::
+set_hooke_elasticity_tensor_plain_strain_E_nu(const number E, const number nu)
+{
+	if(dim != 2) UG_THROW("Plain Strain Tensor only for 2 dimensions" );
+
+	set_hooke_elasticity_tensor_E_nu(E, nu);
 }
 
 
@@ -261,7 +510,7 @@ set_hooke_elasticity_tensor(const number lambda, const number mu)
 	number kappa = lambda + 2.0/3.0 * mu;
 
 	std::stringstream ss;
-	ss << "Hooke Elasticity Tensor: \n";
+	ss << "Hooke Elasticity Isotropic: \n";
 	ss << "  Lame`s first constant lambda: " << lambda << "\n";
 	ss << "  Lame`s second constant mue (sometimes 'G', shear modulus) (Schubmodul): " << mu << "\n";
 	ss << " This setting equals: \n";
