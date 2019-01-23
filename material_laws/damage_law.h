@@ -124,18 +124,41 @@ class DamageLaw
 		number& psi0_on_curr_elem() {return *m_pPsi0_elem;}
 
 	public:
-	///	set elasticity tensor for orthotropic materials
-		void set_elasticity_tensor_orthotropic(
-				const number C11, const number C12, const number C13,
-							const number C22, const number C23,
-										const number C33,
-												const number C44,
-														const number C55,
-																const number C66 );
-
 	///	set hooke elasticity tensor for isotropic materials, (in 2D: plane-strain-case)
+	/// \{
 		void set_hooke_elasticity_tensor(const number lambda, const number mu);
 		void set_hooke_elasticity_tensor_E_nu(const number E, const number nu);
+
+		void set_hooke_elasticity_tensor_plain_stress_E_nu(const number E, const number nu);
+		void set_hooke_elasticity_tensor_plain_strain_E_nu(const number E, const number nu);
+	/// \}
+
+	///	set elasticity tensor for orthotropic materials
+	/// \{
+		void set_elasticity_tensor_orthotropic(
+			const number C11, 	const number C12, 	const number C13,
+								const number C22, 	const number C23,
+													const number C33,
+																	const number C44,
+																		const number C55,
+																			const number C66 );
+
+		void set_elasticity_tensor_orthotropic_E_G_nu(
+				const number E1, const number E2, const number E3, 
+				const number G12, const number G13, const number G23, 
+				const number v12, const number v13, const number v23);
+
+		void set_elasticity_tensor_orthotropic_plain_stress_E_G_nu(
+			const number E1, const number E2, 
+			const number G12, 
+			const number v12);
+
+		void set_elasticity_tensor_orthotropic_plain_strain_E_G_nu(
+				const number E1, const number E2, const number E3, 
+				const number G12, const number G13, const number G23, 
+				const number v12, const number v13, const number v23
+				);
+	/// \}
 
 	public:
 		using base_type::m_materialConfiguration;
