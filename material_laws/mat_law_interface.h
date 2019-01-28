@@ -66,14 +66,23 @@ class IMaterialLaw
 		virtual void stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
 				const MathMatrix<dim,dim>& GradU) = 0;
 
+		virtual void stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
+				const MathVector<dim>& x, const MathMatrix<dim,dim>& GradU) {
+			stressTensor(stressTens, ip, GradU);
+		}
+
 		//	computes the elasticity tensor at an integration point ip
 		virtual SmartPtr<MathTensor4<dim,dim,dim,dim> >
 			elasticityTensor(const size_t ip, const MathMatrix<dim, dim>& GradU) = 0;
 
+		virtual SmartPtr<MathTensor4<dim,dim,dim,dim> >
+			elasticityTensor(const size_t ip, const MathVector<dim>& x, const MathMatrix<dim, dim>& GradU){
+				return elasticityTensor(ip, GradU);
+		}
+
 		//	computes the constant elasticity tensor
 		virtual SmartPtr<MathTensor4<dim,dim,dim,dim> > elasticityTensor(){
-			SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>());
-			return spElastTens;
+			UG_THROW("Not implemented");
 		};
 
 		virtual bool needs_to_add_jac_m(){return true;}

@@ -44,6 +44,7 @@
 
 #include "material_laws/hooke.h"
 #include "material_laws/damage_law.h"
+#include "material_laws/skin_law.h"
 #include "material_laws/prandtl_reuss.h"
 #include "material_laws/mat_law_interface.h"
 #include "output_writer/mech_output_writer.h"
@@ -1350,6 +1351,21 @@ static void Domain(Registry& reg, string grp)
 			.add_method("set_hooke_elasticity_tensor_plain_strain_E_nu", &T::set_hooke_elasticity_tensor_plain_strain_E_nu,"", "E#nu")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "HookeLaw", tag);
+	}
+
+	//	Skin Law for Linear Elasticity
+	{
+		typedef SkinMaterialLaw<TDomain> T;
+		typedef IMaterialLaw<TDomain> TBase;
+		string name = string("SkinMaterialLaw").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.add_constructor()
+			.add_method("set_hooke_elasticity_tensor", &T::set_hooke_elasticity_tensor,"", "lambda#mu")
+			.add_method("set_hooke_elasticity_tensor_E_nu", &T::set_hooke_elasticity_tensor_E_nu,"", "E#nu")
+			.add_method("set_hooke_elasticity_tensor_plain_stress_E_nu", &T::set_hooke_elasticity_tensor_plain_stress_E_nu,"", "E#nu")
+			.add_method("set_hooke_elasticity_tensor_plain_strain_E_nu", &T::set_hooke_elasticity_tensor_plain_strain_E_nu,"", "E#nu")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "SkinMaterialLaw", tag);
 	}
 
 

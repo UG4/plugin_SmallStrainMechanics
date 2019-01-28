@@ -347,18 +347,13 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 		m_spElastTensor = m_spMatLaw->elasticityTensor();
 	}
 
+	/////// for brittle ///////
 	number f = 1.0;
-//	number* psi0 = NULL;
 	DamageLaw<TDomain>* pDamageLaw = dynamic_cast<DamageLaw<TDomain>*>(m_spMatLaw.get());
-	if(pDamageLaw != NULL)
-	{
+	if(pDamageLaw != NULL){
 		f = pDamageLaw->f_on_curr_elem();
-//		psi0 = &pDamageLaw->psi0_on_curr_elem();
 	}
-//	if(psi0) (*psi0) = 0.0;
-
-//	MathMatrix<dim,dim> strainTens;
-//	number volElem = 0.0;
+	/////// for brittle (end) ///////
 
 	MathMatrix<dim, dim> GradU;
 	for (size_t ip = 0; ip < geo.num_ip(); ++ip)
@@ -367,10 +362,7 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 		{
 			//	material law with non constant elasticity tensors
 			m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
-			m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
-			
-//			if(pDamageLaw)
-//				pDamageLaw->strainTensor(strainTens, GradU);
+			m_spElastTensor = m_spMatLaw->elasticityTensor(ip, geo.global_ip(ip), GradU);
 		}
 
 		// A) Compute Du:C:Dv = Du:sigma = sigma:Dv
@@ -390,24 +382,12 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 										* geo.global_grad(ip, a)[K]
 										* (*m_spElastTensor)[i][K][j][L]
 										* geo.global_grad(ip, b)[L];
-
-//								if(psi0){
-//									(*psi0) +=  0.5 * strainTens(i, K) *  (*m_spElastTensor)[i][K][j][L] * strainTens(j, L) * geo.weight(ip);
-//									volElem +=  geo.weight(ip);
-//								}
 							}
 
 						J(i, a, j, b) += integrandC * geo.weight(ip);
-						// if (a>=dim || b>=dim) { UG_LOG("integrad="<< a ,<< ","<< b <<"="<<integrandC<< "*" <<geo.weight(ip)<<std::endl);}
-						// Du:p*Id = p*Id:Dv goes here..
-
 					} //end (j)
 		}
 	} //end(ip)
-
-//	if(psi0){
-//		(*psi0) = (*psi0) / volElem;
-//	}
 
 	if(m_imCompressIndex.data_given()) {
 
@@ -500,10 +480,10 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 	{
 		//	compute cauchy-stress tensor sigma at a ip
 		m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
-		m_spMatLaw->stressTensor(sigma, ip, GradU);
+		m_spMatLaw->stressTensor(sigma, ip, geo.global_ip(ip), GradU);
 
 		////////////// for brittle //////////////////
-		m_spElastTensor = m_spMatLaw->elasticityTensor(ip, GradU);
+		m_spElastTensor = m_spMatLaw->elasticityTensor(ip, geo.global_ip(ip), GradU);
 		if(pDamageLaw)
 			pDamageLaw->strainTensor(strainTens, GradU);
 		////////////// for brittle //////////////////
@@ -982,7 +962,7 @@ ex_stress_fe(MathMatrix<dim,dim> vValue[],
 
 			//	compute cauchy-stress tensor sigma at a ip
 			m_spMatLaw->template DisplacementGradient<TFEGeom>(GradU, ip, geo, u);
-			m_spMatLaw->stressTensor(sigmaIP, ip, GradU);
+			m_spMatLaw->stressTensor(sigmaIP, ip, geo.global_ip(ip), GradU);
 
 		}
 	} else {
