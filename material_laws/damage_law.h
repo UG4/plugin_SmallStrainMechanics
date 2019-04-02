@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015:  G-CSC, Goethe University Frankfurt
- * Author: Raphael Prohl
+ * Copyright (c) 2019: Ruhr University Bochum
+ * Author: Andreas Vogel
  * 
  * This file is part of UG4.
  * 
@@ -44,30 +44,9 @@ namespace SmallStrainMechanics{
 
 /// \addtogroup small_strain_mechanics
 /// \{
-/// Material Law: Prandtl-Reuss law modelling elastoplastic material behavior where the elastic
-///	part is considered as linear. The flow-condition is of von-Mises-type.
+/// Material Law: 
 /**
- * 	This class implements a material law for small strain elastoplastic material behavior
- *
- * 	It is supposed, that the linearized strain tensor could be decomposed additively:
- *
- *  eps = eps_e + eps_p.
- *
- *  The plastic behavior is described by a flow-condition and a flow-rule for the plastic
- *  evolution (\frac{\partial eps_p){\partial t} = ...). The flow-condition is of
- *  von-Mises-type and the flow-rule is associative. To treat the plastic equations
- *  we use the well-established return-mapping-algorithm. Its classical form is valid for the
- *  3d-case and the plane strain-case, but not for the plane stress-case!
- *
- * References:
- * <ul>
- * <li> J.C. Simo and T.J.R. Hughes. Computational Inelasticity. Springer, New York (1998), chapter 3.3.1
- * <li>
- * <li> F.-J. Barthold, M. Schmidt and E. Stein. Error indicators and mesh refinements for
- * <li> finite-element computations of elastoplastic deformations. Computational Mechanics Vol. 22, 225-238 (1998)
- *</ul>
- *
- * \tparam TDomain
+ * 	
  */
 
 template <typename TDomain>
@@ -177,24 +156,6 @@ class DamageLaw
 
 		number* m_pF_elem;
 		number* m_pPsi0_elem;
-
-/*
-	//	std-vector of InternalVars
-		struct ElemData{
-			number f;
-			number psi0;
-		};
-
-		ElemData* m_pElemData;
-
-	//	attachment type: attachment of ElemData
-		typedef Attachment<ElemData> AElemData;
-		AElemData m_aElemData;
-
-	//	the attachment accessor
-		typedef Grid::AttachmentAccessor<TBaseElem, AElemData>	ElemDataAccessor;
-		ElemDataAccessor m_aaElemData;
-*/
 };
 
 }//	end of namespace SmallStrainMechanics

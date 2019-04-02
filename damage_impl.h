@@ -39,10 +39,9 @@ namespace ug{
 namespace SmallStrainMechanics{
 
 
-template <typename TDomain>
-void DamageFunctionUpdater<TDomain>::
-AveragePositions(	MathVector<dim>& vCenter, 
-					const std::vector<MathVector<dim> >& vCornerCoords)
+template <int dim>
+void AveragePositions(	MathVector<dim>& vCenter, 
+						const std::vector<MathVector<dim> >& vCornerCoords)
 {
 	vCenter = vCornerCoords[0];
 	for(size_t j = 1; j < vCornerCoords.size(); ++j)
@@ -51,6 +50,422 @@ AveragePositions(	MathVector<dim>& vCenter,
 	}
 	vCenter *= 1./(number)( vCornerCoords.size());
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+// By partial integration
+////////////////////////////////////////////////////////////////////////////////
+
+
+template <typename TDomain>
+void InitLaplacianByPartialIntegration(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					std::vector< std::vector<  number > >& vStencil,
+					std::vector< std::vector<size_t> >& vIndex,
+					int quadRuleType)
+{
+	PROFILE_BEGIN_GROUP(InitLaplacianByPartialIntegration, "Small Strain Mech");
+
+	static const int dim = TDomain::dim;
+	typedef typename TDomain::grid_type TGrid;
+	typedef typename grid_dim_traits<dim>::element_type TElem; 
+	typedef typename grid_dim_traits<dim>::side_type TSide; 
+	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
+	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+
+	typedef typename TDomain::position_accessor_type TPositionAccessor;
+
+	const size_t fct = 0;
+
+	number sideWeight;
+	number vertexWeight;
+
+	if(quadRuleType == 1) // Midpoint
+	{
+		sideWeight = 1.0;
+		vertexWeight = 0.0;
+	} 
+	else if (quadRuleType == 2) // Simpson's
+	{
+		sideWeight = 4.0/6.0;
+		vertexWeight = 1.0/6.0;		
+	} 
+	else
+		UG_THROW("InitLaplacianByPartialIntegration: wrong quad rule")
+
+
+	// get domain
+	SmartPtr<TDomain> domain = spF->domain();
+	SmartPtr<typename TDomain::grid_type> spGrid = domain->grid();
+	typename TDomain::grid_type& grid = *spGrid;
+	typename TDomain::position_accessor_type& aaPos = domain->position_accessor();
+
+	// get dof distribution
+	SmartPtr<DoFDistribution> dd = spF->dd();
+
+	//	get iterators
+	typename DoFDistribution::traits<TElem>::iterator iter, iterEnd;
+	iter = dd->begin<TElem>(SurfaceView::ALL); // SurfaceView::MG_ALL
+	iterEnd = dd->end<TElem>(SurfaceView::ALL);
+
+	// resize result vectors
+	const size_t numIndex = spF->num_dofs();
+	vIndex.resize(numIndex);
+	vStencil.resize(numIndex);
+
+	// storage (for reuse)
+	std::vector<MathVector<dim> > vCornerCoords, vNbrCornerCoords;
+	MathVector<dim> ElemMidPoint, Normal, Distance;
+
+	//	loop all vertices
+	for(;iter != iterEnd; ++iter)
+	{
+		//	get vertex
+		TElem* elem = *iter;
+
+		// store index
+		std::vector<DoFIndex> ind;
+		if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+		const size_t i = ind[0][0];
+
+		// add self-coupling
+		vIndex[i].clear();
+		vIndex[i].push_back(i);				
+
+		// reset stencil
+		vStencil[i].clear(); 
+		vStencil[i].resize(1, 0.0);
+
+		// get vertices of element
+		Vertex* const* vVertex = elem->vertices();
+		const size_t numVertex = elem->num_vertices();
+
+		// corner coordinates
+		vCornerCoords.resize(numVertex);
+		for(size_t vrt = 0; vrt < numVertex; ++vrt){
+			vCornerCoords[vrt] = aaPos[ vVertex[vrt] ];
+		}
+
+		// element volume
+		const number vol = ElementSize<dim>(elem->reference_object_id(), &vCornerCoords[0]);
+
+		// element midpoint
+		AveragePositions<dim>(ElemMidPoint, vCornerCoords);
+
+		// get all sides in order
+		typename TGrid::template traits<TSide>::secure_container vSide;
+		grid.associated_elements_sorted(vSide, elem);
+
+		//	begin marking
+		grid.begin_marking();
+
+		//	mark the elem
+		grid.mark(elem);
+
+		////////////////////////////////////////////////////////////////////////////
+		// loop all sides
+		////////////////////////////////////////////////////////////////////////////
+		for(size_t s = 0; s < vSide.size(); ++s){
+
+			// side normal
+			SideNormal<dim>(elem->reference_object_id(), Normal, s, &vCornerCoords[0]);
+
+			// get all connected elements
+			typename TGrid::template traits<TElem>::secure_container vElemOfSide;
+			grid.associated_elements(vElemOfSide, vSide[s]);
+
+			// if no elem found: internal error
+			if(vElemOfSide.size() == 0)
+				UG_THROW("Huh, why no element? Should be at least the considered elem itself");
+
+			////////////////////////////////////////////////////////////////////////////
+			// handle sides with only one element
+			// ( if only one element for side, it must be a boundary element or contrained)
+			////////////////////////////////////////////////////////////////////////////
+			if(vElemOfSide.size() == 1){
+
+				////////////////////////////////////////////////////////////////////////////
+				// handle constraint edge
+				// 
+				////////////////////////////////////////////////////////////////////////////
+				if(vSide[s]->is_constrained()){
+
+					TContrainedSide* cSide = dynamic_cast<TContrainedSide*>(vSide[s]);					
+					TSide* constrainingSide = dynamic_cast<TSide*>(cSide->get_constraining_object());
+
+					typename TGrid::template traits<TElem>::secure_container vElemOfContrainingSide;
+					grid.associated_elements(vElemOfContrainingSide, constrainingSide);
+					if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be 2 at constraining side");
+
+					for(size_t nbr = 0; nbr < vElemOfContrainingSide.size(); ++nbr){
+
+						TElem* neighborElem = vElemOfContrainingSide[nbr];
+						if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+
+						grid.mark(neighborElem);					
+
+						// add distance
+						CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
+						AveragePositions<dim>(Distance, vNbrCornerCoords);
+						VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
+
+						const number cpl = (sideWeight) * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
+						vStencil[i].push_back( -cpl );
+						vStencil[i][0]   +=  cpl;
+
+						std::vector<DoFIndex> ind;
+						if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+						vIndex[i].push_back(ind[0][0]);
+
+					}
+				} 
+				////////////////////////////////////////////////////////////////////////////
+				// handle mirror elements
+				// ( if only one element for side, it must be a boundary element)
+				////////////////////////////////////////////////////////////////////////////
+				else {
+
+					ProjectPointToPlane(Distance, ElemMidPoint, aaPos[ (vSide[s]->vertex(0)) ], Normal);
+					VecScaleAdd(Distance, 2.0, ElemMidPoint, -2.0, Distance);
+
+					const number cpl = VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
+					vStencil[i].push_back( -cpl );
+					vStencil[i][0]   +=  cpl;
+
+					std::vector<DoFIndex> ind;
+					if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+					vIndex[i].push_back(ind[0][0]);
+				}
+			}
+			////////////////////////////////////////////////////////////////////////////
+			// handle hanging sides with 2 elements
+			// ( coupled to all fine neighbor elems )
+			////////////////////////////////////////////////////////////////////////////
+			else if(vSide[s]->is_constraining()){
+
+				TContrainingSide* cSide = dynamic_cast<TContrainingSide*>(vSide[s]);
+				const size_t numConstrained = cSide->template num_constrained<TSide>();
+
+				for(size_t cs = 0; cs < numConstrained; ++cs){
+
+					TSide* constrainedSide = cSide->template constrained<TSide>(cs);
+
+					// neighbor elem
+					typename TGrid::template traits<TElem>::secure_container vElemOfContrainedSide;
+					grid.associated_elements(vElemOfContrainedSide, constrainedSide);
+					if(vElemOfContrainedSide.size() != 1) UG_THROW("Huh, should be 1 at constrained side");
+					TElem* neighborElem = vElemOfContrainedSide[0];
+					grid.mark(neighborElem);					
+
+					// add distance
+					CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
+					AveragePositions<dim>(Distance, vNbrCornerCoords);
+					VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
+
+					const number cpl = (sideWeight / numConstrained) * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
+					vStencil[i].push_back( -cpl );
+					vStencil[i][0]   +=  cpl;
+
+					std::vector<DoFIndex> ind;
+					if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+					vIndex[i].push_back(ind[0][0]);
+				}
+
+			}
+			////////////////////////////////////////////////////////////////////////////
+			// regular refined sides
+			// (find all direct face neighbors)
+			////////////////////////////////////////////////////////////////////////////
+			else{
+				for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
+
+					// if more than 2 elem found: internal error
+					if(vElemOfSide.size() != 2)
+						UG_THROW("Huh, why more than 2 elements of side?");
+
+					// neighbor elem
+					TElem* neighborElem = vElemOfSide[eos];
+
+					// check
+					if(grid.template num_children<TElem,TElem>(neighborElem) > 0) 
+						UG_THROW("Huh, why not on top level?");
+
+					// skip self
+					if(neighborElem == elem) continue;
+					grid.mark(neighborElem);					
+
+					// add distance
+					CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
+					AveragePositions<dim>(Distance, vNbrCornerCoords);
+					VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
+
+					const number cpl = sideWeight * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
+					vStencil[i].push_back( -cpl );
+					vStencil[i][0]   +=  cpl;
+
+					std::vector<DoFIndex> ind;
+					if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+					vIndex[i].push_back(ind[0][0]);
+				}
+			}
+		
+		} // end loop sides
+
+		////////////////////////////////////////////////////////////////////////////
+		// loop all sides (FOR DIAG COUPLING)
+		////////////////////////////////////////////////////////////////////////////
+		if(vertexWeight != 0.0){
+
+			for(size_t s = 0; s < vSide.size(); ++s){
+
+				// side normal
+				SideNormal<dim>(elem->reference_object_id(), Normal, s, &vCornerCoords[0]);
+
+				// get all connected elements
+				typename TGrid::template traits<TElem>::secure_container vElemOfSide;
+				grid.associated_elements(vElemOfSide, vSide[s]);
+
+				// if no elem found: internal error
+				if(vElemOfSide.size() == 0)
+					UG_THROW("Huh, why no element? Should be at least the considered elem itself");
+
+
+				////////////////////////////////////////////////////////////////////////////
+				// diagonal elements (only coupled via a common vertex)
+				// (find all vertex coupled neighbors)
+				////////////////////////////////////////////////////////////////////////////
+				
+				// loop vertices of side
+				Vertex* const* vVertex = vSide[s]->vertices();
+				const size_t numVertex = vSide[s]->num_vertices();
+
+
+				for(size_t vrt = 0; vrt < numVertex; ++vrt)
+				{
+					std::vector<TElem*> vDiagNeighbors;
+
+					// collect all diag leaf-elems on same level
+					typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+					grid.associated_elements(vVertexNeighbor, vVertex[vrt]);
+					for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+					{
+						TElem* neighborElem = vVertexNeighbor[eov];
+						if(grid.is_marked(neighborElem)) continue;			
+						if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+
+						//UG_LOG("Over Same level\n")
+			
+						//grid.mark(neighborElem);
+
+						vDiagNeighbors.push_back(neighborElem);
+					}
+
+					// collect all diag leaf-elems on finer level
+					if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) > 0){
+
+						if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) != 1)
+							UG_THROW("Huh, why more than one vertex child?")
+
+						Vertex* fineVrt = grid.template get_child<Vertex,Vertex>(vVertex[vrt], 0);
+
+						typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+						grid.associated_elements(vVertexNeighbor, fineVrt);
+						for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+						{
+							TElem* neighborElem = vVertexNeighbor[eov];
+							if(grid.is_marked(neighborElem)) continue;			
+							if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+
+							//UG_LOG("Over Children\n")
+				
+							//grid.mark(neighborElem);
+
+							vDiagNeighbors.push_back(neighborElem);
+						}
+
+					}
+
+					// collect all diag leaf-elems on coarser level
+					if(grid.get_parent(vVertex[vrt]) != 0){
+
+
+						Vertex* coarseVrt = dynamic_cast<Vertex*>(grid.get_parent(vVertex[vrt]));
+
+						if(coarseVrt != 0){
+
+							typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+							grid.associated_elements(vVertexNeighbor, coarseVrt);
+							for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+							{
+								TElem* neighborElem = vVertexNeighbor[eov];
+								if(grid.is_marked(neighborElem)) continue;			
+								if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+					
+								//UG_LOG("Over Parent\n")
+
+								//grid.mark(neighborElem);
+
+								vDiagNeighbors.push_back(neighborElem);
+							}
+						}
+					}
+
+					// add contribution
+					const size_t numDiagElem = vDiagNeighbors.size();
+					for(size_t diag = 0; diag < numDiagElem; ++diag){
+
+						TElem* neighborElem = vDiagNeighbors[diag];
+
+						// add distance
+						CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
+						AveragePositions<dim>(Distance, vNbrCornerCoords);
+						VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
+
+
+						//UG_LOG("Elem: "<<i<<", side: "<<s<<", vrt: "<<vrt<<", Distance: "<<Distance<<", Normal: "<<Normal<<"\n");
+
+						if(dim == 3)
+							UG_THROW("This implementation is 2d only, currently. Handle vertex neighbors properly in 3d...");
+
+						std::vector<DoFIndex> ind;
+						if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+						const size_t j = ind[0][0];
+
+						size_t k = 0;
+						for(; k < vIndex[i].size(); ++k){
+							if(vIndex[i][k] == j) 
+								break;
+						}
+						if(k == vIndex[i].size()) 
+						{
+							vIndex[i].push_back(j);
+							vStencil[i].push_back(0.0);
+							// k == vIndex[i].size();
+						}
+
+						const number cpl = (vertexWeight / numDiagElem) * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
+						vStencil[i][k]   -= cpl;
+						vStencil[i][0]   +=  cpl;
+					}
+				}
+			} // end side loop
+
+		} // end diag-elem block
+
+		//	end marking
+		grid.end_marking();
+
+	} // end element loop
+
+	static int call = 0; call++;
+	//write_stencil_matrix_debug(spF, "Stencil", call);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// By taylor expansion
+////////////////////////////////////////////////////////////////////////////////
 
 
 template <typename TDomain>
@@ -86,7 +501,7 @@ CollectStencilNeighbors(std::vector<TElem*>& vElem,
 
 	// element midpoint
 	MathVector<dim> ElemMidPoint;
-	AveragePositions(ElemMidPoint, vCornerCoords);
+	AveragePositions<dim>(ElemMidPoint, vCornerCoords);
 
 //			UG_LOG("##############  Element with midpoint " << ElemMidPoint << "    ################   \n")
 
@@ -169,7 +584,7 @@ CollectStencilNeighbors(std::vector<TElem*>& vElem,
 				// add distance
 				vDistance.resize(vDistance.size()+1);
 				CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
-				AveragePositions(vDistance.back(), vCornerCoords);
+				AveragePositions<dim>(vDistance.back(), vCornerCoords);
 				VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
 
 //						UG_LOG("has neighbor, c"  << vDistance.back() << "\n");
@@ -207,7 +622,7 @@ CollectStencilNeighbors(std::vector<TElem*>& vElem,
 
 
 			CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
-			AveragePositions(distance, vCornerCoords);
+			AveragePositions<dim>(distance, vCornerCoords);
 			VecScaleAppend(distance, -1.0, ElemMidPoint);
 
 			number dist = VecTwoNorm(distance);
@@ -236,7 +651,7 @@ CollectStencilNeighbors(std::vector<TElem*>& vElem,
 	// add distance
 	vDistance.resize(vDistance.size()+1);
 	CollectCornerCoordinates(vCornerCoords, *otherNeighbor, aaPos);
-	AveragePositions(vDistance.back(), vCornerCoords);
+	AveragePositions<dim>(vDistance.back(), vCornerCoords);
 	VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
 
 //			UG_LOG("########  Extra Neighbot with vDistance:  " << vDistance.back() << "\n")
@@ -444,407 +859,6 @@ Lambda_ByTaylorExtension(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > 
 
 
 template <typename TDomain>
-void DamageFunctionUpdater<TDomain>::
-init_ByPartIntegral(	
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0)
-{
-	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_ByPartIntegral, "Small Strain Mech");
-
-	const size_t fct = 0;
-
-	// weights (for Simpson's rule)
-	const number sideWeight = 4.0/6.0;
-	const number vertexWeight = 1.0/6.0;
-
-//			const number sideWeight = 1.0;
-//			const number vertexWeight = 0.0;
-
-
-	// get domain
-	SmartPtr<TDomain> domain = spF->domain();
-	SmartPtr<typename TDomain::grid_type> spGrid = domain->grid();
-	typename TDomain::grid_type& grid = *spGrid;
-	typename TDomain::position_accessor_type& aaPos = domain->position_accessor();
-
-	// get dof distribution
-	SmartPtr<DoFDistribution> dd = spF->dd();
-
-	//	get iterators
-	typename DoFDistribution::traits<TElem>::iterator iter, iterEnd;
-	iter = dd->begin<TElem>(SurfaceView::ALL); // SurfaceView::MG_ALL
-	iterEnd = dd->end<TElem>(SurfaceView::ALL);
-
-	// resize result vectors
-	const size_t numIndex = spF->num_dofs();
-	m_vIndex.resize(numIndex);
-	m_vStencil.resize(numIndex);
-
-	// storage (for reuse)
-	std::vector<MathVector<dim> > vCornerCoords, vNbrCornerCoords;
-	MathVector<dim> ElemMidPoint, Normal, Distance;
-
-	//	loop all vertices
-	for(;iter != iterEnd; ++iter)
-	{
-		//	get vertex
-		TElem* elem = *iter;
-
-		// store index
-		std::vector<DoFIndex> ind;
-		if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-		const size_t i = ind[0][0];
-
-		// add self-coupling
-		m_vIndex[i].clear();
-		m_vIndex[i].push_back(i);				
-
-		// reset stencil
-		m_vStencil[i].clear(); 
-		m_vStencil[i].resize(1, 0.0);
-
-		// get vertices of element
-		Vertex* const* vVertex = elem->vertices();
-		const size_t numVertex = elem->num_vertices();
-
-		// corner coordinates
-		vCornerCoords.resize(numVertex);
-		for(size_t vrt = 0; vrt < numVertex; ++vrt){
-			vCornerCoords[vrt] = aaPos[ vVertex[vrt] ];
-		}
-
-		// element volume
-		const number vol = ElementSize<dim>(elem->reference_object_id(), &vCornerCoords[0]);
-
-		// element midpoint
-		AveragePositions(ElemMidPoint, vCornerCoords);
-
-		// get all sides in order
-		typename TGrid::template traits<TSide>::secure_container vSide;
-		grid.associated_elements_sorted(vSide, elem);
-
-		//	begin marking
-		grid.begin_marking();
-
-		//	mark the elem
-		grid.mark(elem);
-
-		////////////////////////////////////////////////////////////////////////////
-		// loop all sides
-		////////////////////////////////////////////////////////////////////////////
-		for(size_t s = 0; s < vSide.size(); ++s){
-
-			// side normal
-			SideNormal<dim>(elem->reference_object_id(), Normal, s, &vCornerCoords[0]);
-
-			// get all connected elements
-			typename TGrid::template traits<TElem>::secure_container vElemOfSide;
-			grid.associated_elements(vElemOfSide, vSide[s]);
-
-			// if no elem found: internal error
-			if(vElemOfSide.size() == 0)
-				UG_THROW("Huh, why no element? Should be at least the considered elem itself");
-
-			////////////////////////////////////////////////////////////////////////////
-			// handle sides with only one element
-			// ( if only one element for side, it must be a boundary element or contrained)
-			////////////////////////////////////////////////////////////////////////////
-			if(vElemOfSide.size() == 1){
-
-				////////////////////////////////////////////////////////////////////////////
-				// handle constraint edge
-				// 
-				////////////////////////////////////////////////////////////////////////////
-				if(vSide[s]->is_constrained()){
-
-					TContrainedSide* cSide = dynamic_cast<TContrainedSide*>(vSide[s]);					
-					TSide* constrainingSide = dynamic_cast<TSide*>(cSide->get_constraining_object());
-
-					typename TGrid::template traits<TElem>::secure_container vElemOfContrainingSide;
-					grid.associated_elements(vElemOfContrainingSide, constrainingSide);
-					if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be 2 at constraining side");
-
-					for(size_t nbr = 0; nbr < vElemOfContrainingSide.size(); ++nbr){
-
-						TElem* neighborElem = vElemOfContrainingSide[nbr];
-						if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
-
-						grid.mark(neighborElem);					
-
-						// add distance
-						CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
-						AveragePositions(Distance, vNbrCornerCoords);
-						VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
-
-						const number cpl = (sideWeight) * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
-						m_vStencil[i].push_back( -cpl );
-						m_vStencil[i][0]   +=  cpl;
-
-						std::vector<DoFIndex> ind;
-						if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-						m_vIndex[i].push_back(ind[0][0]);
-
-					}
-				} 
-				////////////////////////////////////////////////////////////////////////////
-				// handle mirror elements
-				// ( if only one element for side, it must be a boundary element)
-				////////////////////////////////////////////////////////////////////////////
-				else {
-
-					ProjectPointToPlane(Distance, ElemMidPoint, aaPos[ (vSide[s]->vertex(0)) ], Normal);
-					VecScaleAdd(Distance, 2.0, ElemMidPoint, -2.0, Distance);
-
-					const number cpl = VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
-					m_vStencil[i].push_back( -cpl );
-					m_vStencil[i][0]   +=  cpl;
-
-					std::vector<DoFIndex> ind;
-					if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-					m_vIndex[i].push_back(ind[0][0]);
-				}
-			}
-			////////////////////////////////////////////////////////////////////////////
-			// handle hanging sides with 2 elements
-			// ( coupled to all fine neighbor elems )
-			////////////////////////////////////////////////////////////////////////////
-			else if(vSide[s]->is_constraining()){
-
-				TContrainingSide* cSide = dynamic_cast<TContrainingSide*>(vSide[s]);
-				const size_t numConstrained = cSide->template num_constrained<TSide>();
-
-				for(size_t cs = 0; cs < numConstrained; ++cs){
-
-					TSide* constrainedSide = cSide->template constrained<TSide>(cs);
-
-					// neighbor elem
-					typename TGrid::template traits<TElem>::secure_container vElemOfContrainedSide;
-					grid.associated_elements(vElemOfContrainedSide, constrainedSide);
-					if(vElemOfContrainedSide.size() != 1) UG_THROW("Huh, should be 1 at constrained side");
-					TElem* neighborElem = vElemOfContrainedSide[0];
-					grid.mark(neighborElem);					
-
-					// add distance
-					CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
-					AveragePositions(Distance, vNbrCornerCoords);
-					VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
-
-					const number cpl = (sideWeight / numConstrained) * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
-					m_vStencil[i].push_back( -cpl );
-					m_vStencil[i][0]   +=  cpl;
-
-					std::vector<DoFIndex> ind;
-					if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-					m_vIndex[i].push_back(ind[0][0]);
-				}
-
-			}
-			////////////////////////////////////////////////////////////////////////////
-			// regular refined sides
-			// (find all direct face neighbors)
-			////////////////////////////////////////////////////////////////////////////
-			else{
-				for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
-
-					// if more than 2 elem found: internal error
-					if(vElemOfSide.size() != 2)
-						UG_THROW("Huh, why more than 2 elements of side?");
-
-					// neighbor elem
-					TElem* neighborElem = vElemOfSide[eos];
-
-					// check
-					if(grid.template num_children<TElem,TElem>(neighborElem) > 0) 
-						UG_THROW("Huh, why not on top level?");
-
-					// skip self
-					if(neighborElem == elem) continue;
-					grid.mark(neighborElem);					
-
-					// add distance
-					CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
-					AveragePositions(Distance, vNbrCornerCoords);
-					VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
-
-					const number cpl = sideWeight * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
-					m_vStencil[i].push_back( -cpl );
-					m_vStencil[i][0]   +=  cpl;
-
-					std::vector<DoFIndex> ind;
-					if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-					m_vIndex[i].push_back(ind[0][0]);
-				}
-			}
-		
-		} // end loop sides
-
-		////////////////////////////////////////////////////////////////////////////
-		// loop all sides (FOR DIAG COUPLING)
-		////////////////////////////////////////////////////////////////////////////
-		if(vertexWeight != 0.0){
-
-			for(size_t s = 0; s < vSide.size(); ++s){
-
-				// side normal
-				SideNormal<dim>(elem->reference_object_id(), Normal, s, &vCornerCoords[0]);
-
-				// get all connected elements
-				typename TGrid::template traits<TElem>::secure_container vElemOfSide;
-				grid.associated_elements(vElemOfSide, vSide[s]);
-
-				// if no elem found: internal error
-				if(vElemOfSide.size() == 0)
-					UG_THROW("Huh, why no element? Should be at least the considered elem itself");
-
-
-				////////////////////////////////////////////////////////////////////////////
-				// diagonal elements (only coupled via a common vertex)
-				// (find all vertex coupled neighbors)
-				////////////////////////////////////////////////////////////////////////////
-				
-				// loop vertices of side
-				Vertex* const* vVertex = vSide[s]->vertices();
-				const size_t numVertex = vSide[s]->num_vertices();
-
-
-				for(size_t vrt = 0; vrt < numVertex; ++vrt)
-				{
-					std::vector<TElem*> vDiagNeighbors;
-
-					// collect all diag leaf-elems on same level
-					typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
-					grid.associated_elements(vVertexNeighbor, vVertex[vrt]);
-					for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
-					{
-						TElem* neighborElem = vVertexNeighbor[eov];
-						if(grid.is_marked(neighborElem)) continue;			
-						if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
-
-						//UG_LOG("Over Same level\n")
-			
-						//grid.mark(neighborElem);
-
-						vDiagNeighbors.push_back(neighborElem);
-					}
-
-					// collect all diag leaf-elems on finer level
-					if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) > 0){
-
-						if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) != 1)
-							UG_THROW("Huh, why more than one vertex child?")
-
-						Vertex* fineVrt = grid.template get_child<Vertex,Vertex>(vVertex[vrt], 0);
-
-						typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
-						grid.associated_elements(vVertexNeighbor, fineVrt);
-						for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
-						{
-							TElem* neighborElem = vVertexNeighbor[eov];
-							if(grid.is_marked(neighborElem)) continue;			
-							if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
-
-							//UG_LOG("Over Children\n")
-				
-							//grid.mark(neighborElem);
-
-							vDiagNeighbors.push_back(neighborElem);
-						}
-
-					}
-
-					// collect all diag leaf-elems on coarser level
-					if(grid.get_parent(vVertex[vrt]) != 0){
-
-
-						Vertex* coarseVrt = dynamic_cast<Vertex*>(grid.get_parent(vVertex[vrt]));
-
-						if(coarseVrt != 0){
-
-							typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
-							grid.associated_elements(vVertexNeighbor, coarseVrt);
-							for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
-							{
-								TElem* neighborElem = vVertexNeighbor[eov];
-								if(grid.is_marked(neighborElem)) continue;			
-								if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
-					
-								//UG_LOG("Over Parent\n")
-
-								//grid.mark(neighborElem);
-
-								vDiagNeighbors.push_back(neighborElem);
-							}
-						}
-					}
-
-					// add contribution
-					const size_t numDiagElem = vDiagNeighbors.size();
-					for(size_t diag = 0; diag < numDiagElem; ++diag){
-
-						TElem* neighborElem = vDiagNeighbors[diag];
-
-						// add distance
-						CollectCornerCoordinates(vNbrCornerCoords, *neighborElem, aaPos);
-						AveragePositions(Distance, vNbrCornerCoords);
-						VecScaleAdd(Distance, 1.0, ElemMidPoint, -1.0, Distance);
-
-
-						//UG_LOG("Elem: "<<i<<", side: "<<s<<", vrt: "<<vrt<<", Distance: "<<Distance<<", Normal: "<<Normal<<"\n");
-
-						if(dim == 3)
-							UG_THROW("This implementation is 2d only, currently. Handle vertex neighbors properly in 3d...");
-
-						std::vector<DoFIndex> ind;
-						if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-						const size_t j = ind[0][0];
-
-						size_t k = 0;
-						for(; k < m_vIndex[i].size(); ++k){
-							if(m_vIndex[i][k] == j) 
-								break;
-						}
-						if(k == m_vIndex[i].size()) 
-						{
-							m_vIndex[i].push_back(j);
-							m_vStencil[i].push_back(0.0);
-							// k == m_vIndex[i].size();
-						}
-
-						const number cpl = (vertexWeight / numDiagElem) * VecDot(Normal, Distance) / ( VecTwoNormSq(Distance) * vol);
-						m_vStencil[i][k]   -= cpl;
-						m_vStencil[i][0]   +=  cpl;
-					}
-				}
-			} // end side loop
-
-		} // end diag-elem block
-
-		//	end marking
-		grid.end_marking();
-
-	} // end element loop
-
-	static int call = 0; call++;
-	write_stencil_matrix_debug(spF, "Stencil", call);
-
-}
-
-template <typename TDomain>
-number DamageFunctionUpdater<TDomain>::
-Lambda_ByPartIntegral(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF) 
-{
-
-	number res = 0.0;
-	for (size_t j = 0; j < m_vIndex[i].size(); ++j){
-
-		res += m_vStencil[i][j] * (*spF)[ m_vIndex[i][j] ];
-	}
-
-	return res;
-}
-
-
-template <typename TDomain>
 bool DamageFunctionUpdater<TDomain>::
 solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 		SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
@@ -868,7 +882,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 	if(m_ApproxSpaceRevision != approxSpace->revision())
 	{
 		// (re-)initialize setting
-		init_ByPartIntegral(spF, spPsi0);
+		InitLaplacianByPartialIntegration(spF, spPsi0, m_vStencil, m_vIndex, m_quadRuleType);
 
 		//	remember revision counter of approx space
 		m_ApproxSpaceRevision = approxSpace->revision();
@@ -892,7 +906,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 
 ///////////// BEBUG (begin) ///////////////
 /*	for(size_t i = 0; i < m_vIndex.size(); ++i)
-		(*spLambdaOld)[i] = DLambda_ByPartIntegral(i);
+		(*spLambdaOld)[i] = DLambda(i);
 	write_debug(spLambdaOld, "DLambda", call, iterCnt);
 
 	write_debug(spPsi0, "Psi0", call, iterCnt);
@@ -908,7 +922,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 		maxPhi  = 0.0;
 
 		for(size_t i = 0; i < m_vIndex.size(); ++i)
-			(*spLambdaOld)[i] = Lambda_ByPartIntegral(i, spF);
+			(*spLambdaOld)[i] = Lambda(i, spF);
 
 ///////////// BEBUG (begin) ///////////////
 //		write_debug(spLambdaOld, "Lambda", call, iterCnt);
@@ -937,7 +951,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 
 
 				// DAMPED NEWTON
-				f = f - dampNewton * (phi / (psi0 - beta * (lambda + f * DLambda_ByPartIntegral(i)) ));
+				f = f - dampNewton * (phi / (psi0 - beta * (lambda + f * DLambda(i)) ));
 
 				// QUASI-NEWTON
 				//f = f - (1/10)*(phi / (psi0 - beta * lambda));
@@ -953,7 +967,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					UG_LOG("f     : " << f << "\n");
 					UG_LOG("psi0  : " << psi0 << "\n");
 					UG_LOG("lambda: " << lambda << "\n");
-					UG_LOG("DLambda: " << DLambda_ByPartIntegral(i) << "\n");
+					UG_LOG("DLambda: " << DLambda(i) << "\n");
 					UG_LOG("beta  : " << beta << "\n");
 					UG_LOG("r     : " << r << "\n");
 					UG_LOG("phi   : " << phi << "\n");
@@ -986,7 +1000,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 	}
 
 
-	UG_LOG ("DamageFunctionUpdater: normPhi: "  << normPhi << " after " <<iterCnt << " iterations\n");	
+	UG_LOG ("DamageFunctionUpdater: maxPhi: "  << maxPhi << " after " <<iterCnt << " iterations\n");	
 
 	return true;
 }

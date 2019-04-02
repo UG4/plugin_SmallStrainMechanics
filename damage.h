@@ -64,6 +64,18 @@ template <> struct contrained_dim_traits<3>
 // Damage updater
 ////////////////////////////////////////////////////////////////////////////////
 
+template <int dim>
+void AveragePositions(	MathVector<dim>& vCenter, 
+						const std::vector<MathVector<dim> >& vCornerCoords);
+
+template <typename TDomain>
+void InitLaplacianByPartialIntegration(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					std::vector< std::vector<  number > >& vStencil,
+					std::vector< std::vector<size_t> >& vIndex,
+					int quadRuleType);
+
 
 template <typename TDomain>
 class DamageFunctionUpdater
@@ -78,10 +90,11 @@ class DamageFunctionUpdater
 
 		typedef typename TDomain::position_accessor_type TPositionAccessor;
 
-	protected:
-		void AveragePositions(	MathVector<dim>& vCenter, 
-								const std::vector<MathVector<dim> >& vCornerCoords);
+		DamageFunctionUpdater() : m_quadRuleType(2) {}
 
+	private:
+		// DEPRECATED
+		// \{ 
 		void CollectStencilNeighbors(std::vector<TElem*>& vElem,
 									 std::vector<DoFIndex>& vIndex,
 									 std::vector< MathVector<dim> >& vDistance,
@@ -92,7 +105,6 @@ class DamageFunctionUpdater
 									 SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0);
 
 
-	public:
 		void init_ByTaylorExtension(	
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0);
@@ -100,14 +112,9 @@ class DamageFunctionUpdater
 		number DLambda_ByTaylorExtension(size_t i) {return m_vDLambda[i];}
 		number Lambda_ByTaylorExtension(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF);
 
-
-	public:
-		void init_ByPartIntegral(	
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0);
-
-		number DLambda_ByPartIntegral(size_t i) {return m_vStencil[i][0];}	
-		number Lambda_ByPartIntegral(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF);
+		std::vector< DenseMatrix<VariableArray2<number> > > m_vB;
+		std::vector< number > m_vDLambda;
+		// \}
 
 	public:
 		bool solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
@@ -116,23 +123,33 @@ class DamageFunctionUpdater
 					const number eps, const int maxIter, const number dampNewton);
 
 		int last_num_iterations() const {return m_lastNumIters;}
+		int set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
 
 		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
+
+	protected:
+		number DLambda(size_t i) {return m_vStencil[i][0];}	
+		number Lambda(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF)
+		{
+			number res = 0.0;
+			for (size_t j = 0; j < m_vIndex[i].size(); ++j)
+				res += m_vStencil[i][j] * (*spF)[ m_vIndex[i][j] ];
+			return res;
+		}
+
+
+	protected:
+		SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > m_spDebugWriter;
 		void write_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call, int iter);
 		void write_stencil_matrix_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call);
 
 	protected:
-
-		SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > m_spDebugWriter;
-
 		//	approximation space revision of cached values
 		RevisionCounter m_ApproxSpaceRevision;
 
-		std::vector< DenseMatrix<VariableArray2<number> > > m_vB;
-		std::vector< number > m_vDLambda;
-		std::vector< std::vector<size_t> > m_vIndex;
-
+		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
 		std::vector< std::vector<  number > > m_vStencil;
+		std::vector< std::vector<size_t> > m_vIndex;
 
 		int m_lastNumIters;
 };

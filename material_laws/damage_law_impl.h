@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015:  G-CSC, Goethe University Frankfurt
- * Author: Raphael Prohl
+ * Copyright (c) 2019: Ruhr University Bochum
+ * Author: Andreas Vogel
  * 
  * This file is part of UG4.
  * 
@@ -40,15 +40,6 @@
 namespace ug{
 namespace SmallStrainMechanics{
 
-/*
-template <typename TDomain>
-DamageLaw<TDomain>::DamageLaw():
-	IMaterialLaw<TDomain>()
-{
-
-}
-*/
-
 template <typename TDomain>
 DamageLaw<TDomain>::
 DamageLaw(	SmartPtr<GridFunction<TDomain,CPUAlgebra> > spPsi0,
@@ -79,10 +70,7 @@ void
 DamageLaw<TDomain>::
 attach_internal_vars(typename TDomain::grid_type& grid)
 {
-	/*
-	grid.template attach_to<TBaseElem>(m_aElemData);
-	m_aaElemData.access(grid, m_aElemData);
-	*/
+
 }
 
 template <typename TDomain>
@@ -90,12 +78,7 @@ void
 DamageLaw<TDomain>::
 clear_attachments(typename TDomain::grid_type& grid)
 {
-/*	
-	if(grid.template has_attachment<TBaseElem>(m_aElemData)){
-		grid.template detach_from<TBaseElem>(m_aElemData);
-		m_aaElemData.invalidate();
-	}
-*/
+
 }
 
 template <typename TDomain>
@@ -103,20 +86,6 @@ void
 DamageLaw<TDomain>::
 init_internal_vars(TBaseElem* elem, const size_t numIP)
 {
-
-/*
-	std::vector<DoFIndex> ind;
-	const size_t fct = 0;
-
-	if(m_spF->inner_dof_indices(elem, fct, ind) != 1)
-		UG_THROW("Wrong number dofs");
-
-	DoFRef(*m_spF, ind[0]) = 1.0;
-	DoFRef(*m_spPsi0, ind[0]) = 0.0;
-*/
-//	m_aaElemData[elem].f = 1.0;
-//	m_aaElemData[elem].psi0 = 0.0;
-
 	if (!base_type::m_bInit){
 		base_type::m_bInit = true;
 
@@ -140,9 +109,6 @@ internal_vars(TBaseElem* elem)
 
 	m_pF_elem = & DoFRef(*m_spF, ind[0]);
 	m_pPsi0_elem = &DoFRef(*m_spPsi0, ind[0]);
-
-
-//	m_pElemData = &m_aaElemData[elem];
 }
 
 
