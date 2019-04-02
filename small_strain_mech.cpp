@@ -31,7 +31,7 @@
  */
 
 #include "small_strain_mech.h"
-#include "material_laws/damage_law.h"
+#include "material_laws/scaled_hooke_law.h"
 
 // for various user data
 #include "bindings/lua/lua_user_data.h"
@@ -348,10 +348,10 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 	}
 
 	/////// for brittle ///////
-	number f = 1.0;
-	DamageLaw<TDomain>* pDamageLaw = dynamic_cast<DamageLaw<TDomain>*>(m_spMatLaw.get());
-	if(pDamageLaw != NULL){
-		f = pDamageLaw->f_on_curr_elem();
+	number scale = 1.0;
+	IScaledHookeLaw<TDomain>* pScaledHooke = dynamic_cast<IScaledHookeLaw<TDomain>*>(m_spMatLaw.get());
+	if(pScaledHooke != NULL){
+		scale = pScaledHooke->scaling_on_curr_elem();
 	}
 	/////// for brittle (end) ///////
 
@@ -378,7 +378,7 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 						for (size_t K = 0; K < (size_t) dim; ++K)
 							for (size_t L = 0; L < (size_t) dim; ++L)
 							{
-								integrandC += f 
+								integrandC += scale 
 										* geo.global_grad(ip, a)[K]
 										* (*m_spElastTensor)[i][K][j][L]
 										* geo.global_grad(ip, b)[L];
@@ -456,15 +456,15 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 
 
 	////////////// for brittle //////////////////
-	number f = 1.0;
-	number* psi0 = NULL;
-	DamageLaw<TDomain>* pDamageLaw = dynamic_cast<DamageLaw<TDomain>*>(m_spMatLaw.get());
-	if(pDamageLaw != NULL)
+	number scale = 1.0;
+	number* energy = NULL;
+	IScaledHookeLaw<TDomain>* pScaledHooke = dynamic_cast<IScaledHookeLaw<TDomain>*>(m_spMatLaw.get());
+	if(pScaledHooke != NULL)
 	{
-		f = pDamageLaw->f_on_curr_elem();
-		psi0 = &pDamageLaw->psi0_on_curr_elem();
+		scale = pScaledHooke->scaling_on_curr_elem();
+		energy = &pScaledHooke->energy_on_curr_elem();
+		(*energy) = 0.0;
 	}
-	if(psi0) (*psi0) = 0.0;
 
 	MathMatrix<dim,dim> strainTens;
 	number volElem = 0.0;
@@ -484,8 +484,8 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 
 		////////////// for brittle //////////////////
 		m_spElastTensor = m_spMatLaw->elasticityTensor(ip, geo.global_ip(ip), GradU);
-		if(pDamageLaw)
-			pDamageLaw->strainTensor(strainTens, GradU);
+		if(pScaledHooke)
+			pScaledHooke->strainTensor(strainTens, GradU);
 		////////////// for brittle //////////////////
 
 
@@ -502,14 +502,14 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 					innerForcesIP += sigma[i][j] * geo.global_grad(ip, sh)[j];
 				//if (sh>=dim) {UG_LOG("add_def_A_elem: innerForcesIP="<<innerForcesIP << std::endl);}
 
-				d(i, sh) += geo.weight(ip) * innerForcesIP;
+				d(i, sh) += geo.weight(ip) * scale * innerForcesIP;
 
 				////////////// for brittle //////////////////
-				if(psi0){
+				if(energy){
 					for (size_t j = 0; j < (size_t) dim; ++j)
 						for (size_t K = 0; K < (size_t) dim; ++K)
 							for (size_t L = 0; L < (size_t) dim; ++L)
-								(*psi0) +=  0.5 * strainTens(i, K) *  (*m_spElastTensor)[i][K][j][L] * strainTens(j, L) * geo.weight(ip);
+								(*energy) +=  0.5 * strainTens(i, K) * scale * (*m_spElastTensor)[i][K][j][L] * strainTens(j, L) * geo.weight(ip);
 
 
 					volElem +=  geo.weight(ip);
@@ -523,8 +523,9 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 
 
 	////////////// for brittle //////////////////
-	if(psi0){
-		(*psi0) = (*psi0) / volElem;
+	if(energy){
+		(*energy) = (*energy) / volElem;
+		pScaledHooke->post_process_energy_on_curr_elem();
 	}
 	////////////// for brittle //////////////////
 

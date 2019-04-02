@@ -99,11 +99,11 @@ class HookeLaw
 	////////////////////////////
 	// INTERFACE-METHODS
 	////////////////////////////
-		void init();
+		virtual void init();
 
 	///	computes the cauchy stress tensor sigma at an integration point 'ip'
-		void stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
-				const MathMatrix<dim, dim>& GradU);
+		virtual void stressTensor(MathMatrix<dim,dim>& stressTens, const size_t ip,
+									const MathMatrix<dim, dim>& GradU);
 
 	///	computes the elasticity tensor; commonly denoted by C
 		virtual inline SmartPtr<MathTensor4<TDomain::dim,TDomain::dim,TDomain::dim,TDomain::dim> >
@@ -154,15 +154,14 @@ class HookeLaw
 	public:
 		using base_type::m_materialConfiguration;
 
-	private:
+	public:
 		void strainTensor(MathMatrix<dim,dim>& strainTens, const MathMatrix<dim, dim>& GradU);
 
-	private:
+	protected:
 	/// elasticity tensor
 		SmartPtr<MathTensor4<dim,dim,dim,dim> > m_spElastTensorFunct;
-
-
 };
+
 
 }//	end of namespace SmallStrainMechanics
 }//	end of namespace ug

@@ -43,7 +43,7 @@
 #include "contact/contact.h"
 
 #include "material_laws/hooke.h"
-#include "material_laws/damage_law.h"
+#include "material_laws/scaled_hooke_law.h"
 #include "material_laws/skin_law.h"
 #include "material_laws/prandtl_reuss.h"
 #include "material_laws/mat_law_interface.h"
@@ -220,23 +220,23 @@ static void Domain(Registry& reg, string grp)
 	//	Damage Law for Linear Elasticity
 	{
 		typedef DamageLaw<TDomain> T;
-		typedef IMaterialLaw<TDomain> TBase;
+		typedef HookeLaw<TDomain> TBase;
 		string name = string("DamageLaw").append(suffix);
 		reg.add_class_<T, TBase>(name, grp)
-//			.add_constructor()
 			.template add_constructor<void (*)(SmartPtr<GridFunction<TDomain,CPUAlgebra> >, SmartPtr<GridFunction<TDomain,CPUAlgebra> >)>()
-			.add_method("set_elasticity_tensor_orthotropic", &T::set_elasticity_tensor_orthotropic,
-					"", "C11#C12#C13#C22#C23#C33#C44#C55#C66")
-			.add_method("set_elasticity_tensor_orthotropic_E_G_nu", &T::set_elasticity_tensor_orthotropic_E_G_nu, "", "")
-			.add_method("set_elasticity_tensor_orthotropic_plain_stress_E_G_nu", &T::set_elasticity_tensor_orthotropic_plain_stress_E_G_nu, "", "")
-			.add_method("set_elasticity_tensor_orthotropic_plain_strain_E_G_nu", &T::set_elasticity_tensor_orthotropic_plain_strain_E_G_nu, "", "")
-			//.add_method("set_elasticity_tensor_orthotropic2d", &T::set_elasticity_tensor_orthotropic2d, "", "C11#C12#C22#C33")
-			.add_method("set_hooke_elasticity_tensor", &T::set_hooke_elasticity_tensor,"", "lambda#mu")
-			.add_method("set_hooke_elasticity_tensor_E_nu", &T::set_hooke_elasticity_tensor_E_nu,"", "E#nu")
-			.add_method("set_hooke_elasticity_tensor_plain_stress_E_nu", &T::set_hooke_elasticity_tensor_plain_stress_E_nu,"", "E#nu")
-			.add_method("set_hooke_elasticity_tensor_plain_strain_E_nu", &T::set_hooke_elasticity_tensor_plain_strain_E_nu,"", "E#nu")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "DamageLaw", tag);
+	}
+
+	//	TopologyOptimLaw for Linear Elasticity
+	{
+		typedef TopologyOptimLaw<TDomain> T;
+		typedef HookeLaw<TDomain> TBase;
+		string name = string("TopologyOptimLaw").append(suffix);
+		reg.add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(SmartPtr<GridFunction<TDomain,CPUAlgebra> >, SmartPtr<GridFunction<TDomain,CPUAlgebra> >, int)>()
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "TopologyOptimLaw", tag);
 	}
 
 	{
