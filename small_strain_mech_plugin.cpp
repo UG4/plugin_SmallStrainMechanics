@@ -104,6 +104,8 @@ class DamageFunctionUpdater
 									 SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 									 SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0)
 		{
+			PROFILE_BEGIN_GROUP(DamageFunctionUpdater_CollectStencilNeighbors, "Small Strain Mech");
+
 			//static const int numNeighborsToFind = 2*dim + (dim * (dim-1)) / 2;
 			const size_t fct = 0;
 
@@ -289,6 +291,8 @@ class DamageFunctionUpdater
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0)
 		{
+			PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_ByTaylorExtension, "Small Strain Mech");
+
 			const size_t fct = 0;
 
 			// get domain
@@ -481,6 +485,8 @@ class DamageFunctionUpdater
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0)
 		{
+			PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_ByPartIntegral, "Small Strain Mech");
+
 			const size_t fct = 0;
 
 			// weights (for Simpson's rule)
@@ -877,6 +883,8 @@ class DamageFunctionUpdater
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
 					const number beta, const number r, const number eps, const int maxIter)
 		{
+			PROFILE_BEGIN_GROUP(DamageFunctionUpdater_solve, "Small Strain Mech");
+
 			////////////////////////////////////////////////////////////////////////////
 			// check if has to be rebuild 
 			////////////////////////////////////////////////////////////////////////////
@@ -999,6 +1007,8 @@ class DamageFunctionUpdater
 //				UG_LOG ("DamageFunctionUpdater: normPhi: "  << normPhi << "\n");	
 			}
 
+			m_lastNumIters = iterCnt;
+
 			if(iterCnt >= maxIter){
 				// UG_THROW("DamageFunctionUpdater: no convergence after " << iterCnt << " iterations");
 				UG_LOG("DamageFunctionUpdater: no convergence after " << iterCnt << " iterations");
@@ -1011,6 +1021,8 @@ class DamageFunctionUpdater
 			return true;
 		}
 
+
+		int last_num_iterations() const {return m_lastNumIters;}
 
 		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter)
 		{
@@ -1082,7 +1094,7 @@ class DamageFunctionUpdater
 
 		std::vector< std::vector<  number > > m_vStencil;
 
-
+		int m_lastNumIters;
 };
 
 
@@ -1096,6 +1108,8 @@ void MarkDamage(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					number avgRefineFactor, number avgCoarsenFactor,
 					int maxLevel)
 {
+	PROFILE_FUNC_GROUP("Small Strain Mech");
+
 	static const int dim = TDomain::dim;
 	typedef typename grid_dim_traits<dim>::element_type TElem; 
 	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
@@ -1193,6 +1207,89 @@ void MarkDamage(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 	UG_LOG("  +++ Marked for refinement: " << numMarkedRefine << " Elements.\n");
 	UG_LOG("  +++ Marked for coarsening: " << numMarkedCoarse << " Elements.\n");
 }
+
+
+template<typename TDomain>
+std::vector<number> DamageStatistic(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+										SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0)
+{
+	PROFILE_FUNC_GROUP("Small Strain Mech");
+
+	static const int dim = TDomain::dim;
+	typedef typename grid_dim_traits<dim>::element_type TElem; 
+	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
+	const int fct = 0;
+
+	///////////////////////////
+	// statistic
+	///////////////////////////
+
+	number max_fPsi0 = std::numeric_limits<number>::min();
+	number min_fPsi0 = std::numeric_limits<number>::max();
+	number sum_fPsi0 = 0.0;
+
+	number max_l2_fPsi0 = std::numeric_limits<number>::min();
+	number min_l2_fPsi0 = std::numeric_limits<number>::max();
+	number sum_l2_fPsi0 = 0.0;
+
+	number max_l_fPsi0 = std::numeric_limits<number>::min();
+	number min_l_fPsi0 = std::numeric_limits<number>::max();
+	number sum_l_fPsi0 = 0.0;
+
+	// loop all elems 
+	const_iterator iter = spF->template begin<TElem>();
+	const_iterator iterEnd = spF->template end<TElem>();
+
+	//	loop elements for marking
+	size_t numElem = 0;
+	for(; iter != iterEnd; ++iter)
+	{
+		//	get element
+		TElem* elem = *iter; ++numElem;
+
+		std::vector<DoFIndex> ind;
+		if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+
+		const number f =  DoFRef(*spF, ind[0]);
+		const number psi0 = DoFRef(*spPsi0, ind[0]);
+
+		max_fPsi0 = std::max(max_fPsi0, f*psi0);
+		min_fPsi0 = std::min(min_fPsi0, f*psi0);
+		sum_fPsi0 += f*psi0;
+
+		const number l2 = ElementDiameterSq(*elem, *(spF->domain()) );
+
+		max_l2_fPsi0 = std::max(max_l2_fPsi0, l2*f*psi0);
+		min_l2_fPsi0 = std::min(min_l2_fPsi0, l2*f*psi0);
+		sum_l2_fPsi0 += l2*f*psi0;
+
+		const number l = std::sqrt(l2);
+
+		max_l_fPsi0 = std::max(max_l_fPsi0, l*f*psi0);
+		min_l_fPsi0 = std::min(min_l_fPsi0, l*f*psi0);
+		sum_l_fPsi0 += l*f*psi0;
+	}
+	number avg_fPsi0 = sum_fPsi0 / numElem;
+	number avg_l2_fPsi0 = sum_l2_fPsi0 / numElem;
+	number avg_l_fPsi0 = sum_l_fPsi0 / numElem;
+
+
+	std::vector<number> vRes;
+	vRes.push_back(max_fPsi0);
+	vRes.push_back(min_fPsi0);
+	vRes.push_back(avg_fPsi0);
+
+	vRes.push_back(max_l2_fPsi0);
+	vRes.push_back(min_l2_fPsi0);
+	vRes.push_back(avg_l2_fPsi0);
+
+	vRes.push_back(max_l_fPsi0);
+	vRes.push_back(min_l_fPsi0);
+	vRes.push_back(avg_l_fPsi0);
+
+	return vRes;
+}
+
 
 
 template<typename TDomain>
@@ -1398,11 +1495,14 @@ static void Domain(Registry& reg, string grp)
 			.add_constructor()
 			.add_method("solve", &T::solve, "", "")
 			.add_method("set_debug", &T::set_debug, "", "")
+			.add_method("last_num_iterations", &T::last_num_iterations, "", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "DamageFunctionUpdater", tag);
 
 		reg.add_function("MarkDamage", &MarkDamage<TDomain>, grp);
 		reg.add_function("HadamardProd", &HadamardProd<TDomain>, grp);
+
+		reg.add_function("DamageStatistic", &DamageStatistic<TDomain>, grp);
 
 	}
 
