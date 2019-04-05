@@ -245,6 +245,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_<T>(name, grp)
 			.add_constructor()
 			.add_method("solve", &T::solve, "", "")
+			.add_method("set_quad_rule", &T::set_quad_rule, "", "")
 			.add_method("set_debug", &T::set_debug, "", "")
 			.add_method("last_num_iterations", &T::last_num_iterations, "", "")
 			.set_construct_as_smart_pointer(true);
@@ -254,7 +255,18 @@ static void Domain(Registry& reg, string grp)
 		reg.add_function("HadamardProd", &HadamardProd<TDomain>, grp);
 
 		reg.add_function("DamageStatistic", &DamageStatistic<TDomain>, grp);
+	}
 
+
+	{
+		typedef RelativeDensityUpdater<TDomain> T;
+		string name = string("RelativeDensityUpdater").append(suffix);
+		reg.add_class_<T>(name, grp)
+			.add_constructor()
+			.add_method("solve", &T::solve, "", "")
+			.add_method("set_quad_rule", &T::set_quad_rule, "", "")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "RelativeDensityUpdater", tag);
 	}
 
 	//	Prandtl Reuss Law for small strain ElastoPlasticity

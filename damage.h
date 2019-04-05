@@ -60,10 +60,6 @@ template <> struct contrained_dim_traits<3>
 };
 
 
-////////////////////////////////////////////////////////////////////////////////
-// Damage updater
-////////////////////////////////////////////////////////////////////////////////
-
 template <int dim>
 void AveragePositions(	MathVector<dim>& vCenter, 
 						const std::vector<MathVector<dim> >& vCornerCoords);
@@ -71,11 +67,13 @@ void AveragePositions(	MathVector<dim>& vCenter,
 template <typename TDomain>
 void InitLaplacianByPartialIntegration(	
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
 					std::vector< std::vector<  number > >& vStencil,
 					std::vector< std::vector<size_t> >& vIndex,
-					int quadRuleType);
+					int quadRuleType, bool fillElemSizeIntoVector = false);
 
+////////////////////////////////////////////////////////////////////////////////
+// Damage updater
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename TDomain>
 class DamageFunctionUpdater
@@ -95,6 +93,7 @@ class DamageFunctionUpdater
 	private:
 		// DEPRECATED
 		// \{ 
+		/*
 		void CollectStencilNeighbors(std::vector<TElem*>& vElem,
 									 std::vector<DoFIndex>& vIndex,
 									 std::vector< MathVector<dim> >& vDistance,
@@ -114,6 +113,7 @@ class DamageFunctionUpdater
 
 		std::vector< DenseMatrix<VariableArray2<number> > > m_vB;
 		std::vector< number > m_vDLambda;
+		*/
 		// \}
 
 	public:
@@ -123,7 +123,7 @@ class DamageFunctionUpdater
 					const number eps, const int maxIter, const number dampNewton);
 
 		int last_num_iterations() const {return m_lastNumIters;}
-		int set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
+		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
 
 		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
 
@@ -156,6 +156,58 @@ class DamageFunctionUpdater
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// RelativeDensityUpdater
+////////////////////////////////////////////////////////////////////////////////
+
+
+template <typename TDomain>
+class RelativeDensityUpdater
+{
+	public:
+		static const int dim = TDomain::dim;
+		typedef typename TDomain::grid_type TGrid;
+		typedef typename grid_dim_traits<dim>::element_type TElem; 
+		typedef typename grid_dim_traits<dim>::side_type TSide; 
+		typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
+		typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+
+		typedef typename TDomain::position_accessor_type TPositionAccessor;
+
+		RelativeDensityUpdater() : m_quadRuleType(2) {}
+
+	public:
+		bool solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spDrivingForce,
+					const number betaStar, const number etaChiStar, 
+					const number chiMin, const number dt, const int p);
+
+		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
+
+	protected:
+		number DLambda(size_t i) {return m_vStencil[i][0];}	
+		number Lambda(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF)
+		{
+			number res = 0.0;
+			for (size_t j = 0; j < m_vIndex[i].size(); ++j)
+				res += m_vStencil[i][j] * (*spF)[ m_vIndex[i][j] ];
+			return res;
+		}
+
+	protected:
+		//	approximation space revision of cached values
+		RevisionCounter m_ApproxSpaceRevision;
+
+		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
+		std::vector< std::vector<  number > > m_vStencil;
+		std::vector< std::vector<size_t> > m_vIndex;
+
+
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spElemSize;
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spLaplaceChi;
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Damage marking
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -164,9 +216,10 @@ template<typename TDomain>
 void MarkDamage(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
 					IRefiner& refiner,
-					number refineFrac, number coarseFrac, 
-					number avgRefineFactor, number avgCoarsenFactor,
-					int maxLevel);
+					number minValueToRefine, number maxValueToCoarsen,
+					int maxLevel,
+					const std::vector<MathVector<TDomain::dim,number>* >& vCenter, 
+					const std::vector<number>& vRadius);
 
 
 template<typename TDomain>

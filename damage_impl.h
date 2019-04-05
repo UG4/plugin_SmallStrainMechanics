@@ -34,6 +34,7 @@
 #define __SMALL_STRAIN_MECHANICS__DAMAGE_IMPL_H_
 
 #include "damage.h"
+#include "common/math/math_vector_matrix/math_vector_functions.h"
 
 namespace ug{
 namespace SmallStrainMechanics{
@@ -59,11 +60,10 @@ void AveragePositions(	MathVector<dim>& vCenter,
 
 template <typename TDomain>
 void InitLaplacianByPartialIntegration(	
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF, // some dummy function
 					std::vector< std::vector<  number > >& vStencil,
 					std::vector< std::vector<size_t> >& vIndex,
-					int quadRuleType)
+					int quadRuleType, bool fillElemSizeIntoVector)
 {
 	PROFILE_BEGIN_GROUP(InitLaplacianByPartialIntegration, "Small Strain Mech");
 
@@ -149,6 +149,9 @@ void InitLaplacianByPartialIntegration(
 
 		// element volume
 		const number vol = ElementSize<dim>(elem->reference_object_id(), &vCornerCoords[0]);
+
+		if(fillElemSizeIntoVector)
+			(*spF)[i] = vol;
 
 		// element midpoint
 		AveragePositions<dim>(ElemMidPoint, vCornerCoords);
@@ -466,7 +469,7 @@ void InitLaplacianByPartialIntegration(
 ////////////////////////////////////////////////////////////////////////////////
 // By taylor expansion
 ////////////////////////////////////////////////////////////////////////////////
-
+/*
 
 template <typename TDomain>
 void DamageFunctionUpdater<TDomain>::
@@ -820,11 +823,11 @@ init_ByTaylorExtension(
 		(*spCond_infty)[i] = D_infty * DInv_infty;
 ///////////// BEBUG (end) ///////////////
 
-/*				UG_LOG(" ++++++ Distances  Elem "  << i << "\n")
-		for (int k = 0; k < numNeighbors; ++k)
-			UG_LOG(" ++"  << k << ": "  << vDistance[k] <<"\n")
-		UG_LOG(" +++ DLambda "  << m_vDLambda[i] << "\n")
-*/
+//				UG_LOG(" ++++++ Distances  Elem "  << i << "\n")
+//		for (int k = 0; k < numNeighbors; ++k)
+//			UG_LOG(" ++"  << k << ": "  << vDistance[k] <<"\n")
+//		UG_LOG(" +++ DLambda "  << m_vDLambda[i] << "\n")
+//
 		
 		m_vIndex[i].resize(vIndex.size());
 		for(size_t k = 0; k < vIndex.size(); ++k)
@@ -856,7 +859,13 @@ Lambda_ByTaylorExtension(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > 
 	}
 	return res;
 }
+*/
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+// DamageFunctionUpdater
+////////////////////////////////////////////////////////////////////////////////
 
 template <typename TDomain>
 bool DamageFunctionUpdater<TDomain>::
@@ -882,7 +891,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 	if(m_ApproxSpaceRevision != approxSpace->revision())
 	{
 		// (re-)initialize setting
-		InitLaplacianByPartialIntegration(spF, spPsi0, m_vStencil, m_vIndex, m_quadRuleType);
+		InitLaplacianByPartialIntegration(spF, m_vStencil, m_vIndex, m_quadRuleType);
 
 		//	remember revision counter of approx space
 		m_ApproxSpaceRevision = approxSpace->revision();
@@ -1071,8 +1080,277 @@ write_stencil_matrix_debug(
 
 
 
+////////////////////////////////////////////////////////////////////////////////
+// RelativeDensityUpdater
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+template <typename TDomain>
+bool RelativeDensityUpdater<TDomain>::
+solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > spDrivingForce,
+		const number betaStar, const number etaChiStar, 
+		const number chiMin, const number dt, const int p)
+{
+	PROFILE_BEGIN_GROUP(RelativeDensityUpdater_solve, "Small Strain Mech");
+	static int call = 0; call++;	
+
+
+
+	////////////////////////////////////////////////////////////////////////////
+	// rebuild after grid adaption
+	////////////////////////////////////////////////////////////////////////////
+
+	// get approximation space
+	ConstSmartPtr<ApproximationSpace<TDomain> > approxSpace = spChi->approx_space();
+	if(approxSpace != spDrivingForce->approx_space())
+		UG_THROW("RelativeDensityUpdater<TDomain>::solve: expected same ApproximationSpace for f and psi0");
+
+	// check revision counter if grid / approx space has changed since last call
+	if(m_ApproxSpaceRevision != approxSpace->revision())
+	{
+		m_spElemSize = spChi->clone();
+		m_spLaplaceChi = spChi->clone();
+
+		// (re-)initialize setting
+		InitLaplacianByPartialIntegration(m_spElemSize, m_vStencil, m_vIndex, m_quadRuleType, true);
+
+		//	remember revision counter of approx space
+		m_ApproxSpaceRevision = approxSpace->revision();
+	}
+
+
+
+	////////////////////////////////////////////////////////////////////////////
+	// loop until maxiter
+	////////////////////////////////////////////////////////////////////////////
+
+	// TODO: better handling of h^2 in 3d
+	number h2 = 0.0;
+	for(size_t i = 0; i < m_vIndex.size(); ++i){
+		const number vol = (*m_spElemSize)[i];
+		h2 = std::max(h2, vol);
+	}
+
+	const int n = std::floor(6*betaStar / (etaChiStar * h2)) + 1;
+
+	const number dt_chi = dt / n;
+
+
+	for(int j = 0; j < n; ++j)
+	{
+		////////////////////////////////////////////////////////////////////////////
+		// compute parameter beta, eta
+		////////////////////////////////////////////////////////////////////////////
+
+		number int_g_p = 0.0, int_g = 0.0;
+		for(size_t i = 0; i < m_vIndex.size(); ++i)
+		{
+			const number chi = (*spChi)[i];
+			const number vol = (*m_spElemSize)[i];
+			const number p_chi = (*spDrivingForce)[i];
+
+			const number g = (chi - chiMin) * (1.0 - chi);
+
+			int_g += vol * g;
+			int_g_p += vol * g * p_chi;
+		}
+
+		const number p_w = int_g_p / int_g;
+
+		const number beta = betaStar * p_w;
+		const number eta_chi = etaChiStar * p_w;
+
+
+		////////////////////////////////////////////////////////////////////////////
+		// compute lagrange multiplier lambda
+		////////////////////////////////////////////////////////////////////////////
+
+		number int_1 = 0.0, int_partPsi = 0.0, int_LaplaceChi = 0.0;
+		for(size_t i = 0; i < m_vIndex.size(); ++i)
+		{
+			const number vol = (*m_spElemSize)[i];
+			const number p_chi = (*spDrivingForce)[i];
+			const number laplaceChi = (*m_spLaplaceChi)[i] = Lambda(i, spChi);
+
+			int_1 += vol;
+			int_partPsi += p_chi * vol;
+			int_LaplaceChi += laplaceChi * vol;
+		}
+
+		const number lambda =  (1.0 / int_1) * (int_partPsi + beta * int_LaplaceChi);
+
+		////////////////////////////////////////////////////////////////////////////
+		// update relative density (and theredy also driving force)
+		////////////////////////////////////////////////////////////////////////////
+
+		for(size_t i = 0; i < m_vIndex.size(); ++i)
+		{
+				 number& chi = (*spChi)[i];
+				 number& p_chi = (*spDrivingForce)[i];
+				 number chi_old = chi;
+//			const number vol = (*m_spElemSize)[i];
+			const number laplaceChi = (*m_spLaplaceChi)[i];
+
+			// update relative density
+			chi += (dt_chi / eta_chi) * (p_chi - lambda + beta * laplaceChi);
+
+///////////// BEBUG (begin) ///////////////
+			if(std::isfinite(chi) == false){
+
+				UG_LOG(" ###############  \n");
+				UG_LOG("chi        : " << chi << "\n");
+				UG_LOG("dt_chi     : " << dt_chi << "\n");
+				UG_LOG("eta_chi    : " << eta_chi << "\n");
+				UG_LOG("p_chi      : " << p_chi << "\n");
+				UG_LOG("lambda     : " << lambda << "\n");
+				UG_LOG("beta       : " << beta << "\n");
+				UG_LOG("laplaceChi : " << laplaceChi << "\n");
+				UG_LOG("p_w        : " << p_w << "\n");
+				UG_LOG(" ###############  \n");
+				UG_THROW("Value for chi not finite, but: " << chi);
+			}
+////////////// BEBUG (end) ///////////////
+
+			if(chi > 1.0) chi = 1.0;
+			if(chi < chiMin) chi = chiMin;
+
+			// update 
+			p_chi *= std::pow( (chi / chi_old), p-1);
+		}
+
+	}
+
+	return true;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Marking
+////////////////////////////////////////////////////////////////////////////////
+
+
 template<typename TDomain>
 void MarkDamage(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					IRefiner& refiner,
+					number minValueToRefine, number maxValueToCoarsen,
+					int maxLevel, 
+					const std::vector<MathVector<TDomain::dim,number>* >& vCenter, 
+					const std::vector<number>& vRadius)
+{
+	PROFILE_FUNC_GROUP("Small Strain Mech");
+
+	static const int dim = TDomain::dim;
+	typedef typename grid_dim_traits<dim>::element_type TElem; 
+	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
+	typedef typename TDomain::position_accessor_type	position_accessor_type;
+	position_accessor_type& aaPos = spF->domain()->position_accessor();
+
+	const int fct = 0; // \todo: generalize
+
+	///////////////////////////
+	// checks
+	///////////////////////////
+
+	if( (minValueToRefine < maxValueToCoarsen) )
+		UG_THROW("Coarsen threshold must be smaller than refine threshold")
+
+	if( !(vRadius.size() == vCenter.size()) )
+		UG_THROW("Num radius and center must match")
+	
+
+	///////////////////////////
+	// marking
+	///////////////////////////
+
+	//	we'll compare against the square radius.
+	std::vector<number> vRadiusSq;
+	for(size_t i = 0; i < vRadius.size(); ++i)
+		vRadiusSq.push_back( vRadius[i] * vRadius[i]);
+
+	std::vector<MathVector<dim> > vCircleCenter;
+	for(size_t i = 0; i < vCenter.size(); ++i)
+		vCircleCenter.push_back( *(vCenter[i]));
+
+
+	//	reset counter
+	int numMarkedRefine = 0, numMarkedCoarse = 0;
+
+
+	std::vector<MathVector<dim> > vCornerCoords;
+	MathVector<dim> ElemCenter;
+
+	//	loop elements for marking
+	const_iterator iter = spF->template begin<TElem>();
+	const_iterator iterEnd = spF->template end<TElem>();
+	for(; iter != iterEnd; ++iter)
+	{
+		//	get element
+		TElem* elem = *iter;
+
+		std::vector<DoFIndex> ind;
+		if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+		const number val = DoFRef(*spF, ind[0]) * DoFRef(*spPsi0, ind[0]);
+
+		// check for extra refinement
+		bool bInCircle = false;
+		if(!vRadiusSq.empty()){
+			CollectCornerCoordinates(vCornerCoords, *elem, aaPos);
+			AveragePositions<dim>(ElemCenter, vCornerCoords);
+
+			for(size_t i = 0; i < vRadiusSq.size(); ++i){
+				if(VecDistanceSq(vCircleCenter[i], ElemCenter) <= vRadiusSq[i]){
+					bInCircle = true;
+				}
+			}
+		}
+
+		//	marks for refinement
+		if( val > minValueToRefine || bInCircle)
+		{
+			if(spF->dd()->multi_grid()->get_level(elem) < maxLevel)
+			{
+				refiner.mark(elem, RM_REFINE);
+				numMarkedRefine++;
+			}
+
+			continue;
+		}
+
+		//	marks for coarsening
+		if( val < maxValueToCoarsen)
+		{
+			refiner.mark(elem, RM_COARSEN);
+			numMarkedCoarse++;
+		}
+
+	}
+
+	///////////////////////////
+	// print infos
+	///////////////////////////
+
+#ifdef UG_PARALLEL
+	if(pcl::NumProcs() > 1)
+	{
+		UG_LOG("  >>> Marked on Proc "<<pcl::ProcRank()<<": refine: " << numMarkedRefine << ", coarsen : " << numMarkedCoarse << "\n");
+		pcl::ProcessCommunicator com;
+		int numMarkedRefineLocal = numMarkedRefine, numMarkedCoarseLocal = numMarkedCoarse;
+		numMarkedRefine = com.allreduce(numMarkedRefineLocal, PCL_RO_SUM);
+		numMarkedCoarse = com.allreduce(numMarkedCoarseLocal, PCL_RO_SUM);
+	}
+#endif
+
+	UG_LOG("  >>> Marked refine: " << numMarkedRefine << ", coarsen: " << numMarkedCoarse << "\n" );
+}
+
+
+
+template<typename TDomain>
+void MarkDamage_OLD_AND_DEPRECATED(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
 					IRefiner& refiner,
 					number refineFrac, number coarseFrac, 
@@ -1275,6 +1553,8 @@ void HadamardProd(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spFPsi0,
 		(*spFPsi0)[i] = (*spF)[i] * (*spPsi0)[i];
 	}
 }
+
+
 
 
 } // end namespace SmallStrainMechanics
