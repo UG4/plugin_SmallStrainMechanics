@@ -183,6 +183,8 @@ class RelativeDensityUpdater
 
 		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
 
+		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
+
 	protected:
 		number DLambda(size_t i) {return m_vStencil[i][0];}	
 		number Lambda(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF)
@@ -192,6 +194,11 @@ class RelativeDensityUpdater
 				res += m_vStencil[i][j] * (*spF)[ m_vIndex[i][j] ];
 			return res;
 		}
+
+	protected:
+		SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > m_spDebugWriter;
+		void write_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call, int iter);
+		void write_stencil_matrix_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call);
 
 	protected:
 		//	approximation space revision of cached values

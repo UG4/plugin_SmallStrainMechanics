@@ -466,6 +466,247 @@ void InitLaplacianByPartialIntegration(
 
 }
 
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Collect Surface Neighbors
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+template <typename TDomain>
+void CollectSurfaceNeighbors(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF, // some dummy function
+					typename grid_dim_traits<TDomain::dim>::element_type* elem,
+					std::vector< typename grid_dim_traits<TDomain::dim>::element_type * >& vNeighbors)
+{
+	PROFILE_BEGIN_GROUP(InitLaplacianByPartialIntegration, "Small Strain Mech");
+
+	static const int dim = TDomain::dim;
+	typedef typename TDomain::grid_type TGrid;
+	typedef typename grid_dim_traits<dim>::element_type TElem; 
+	typedef typename grid_dim_traits<dim>::side_type TSide; 
+	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
+	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+
+	typedef typename TDomain::position_accessor_type TPositionAccessor;
+
+	// get domain
+	SmartPtr<TDomain> domain = spF->domain();
+	SmartPtr<typename TDomain::grid_type> spGrid = domain->grid();
+	typename TDomain::grid_type& grid = *spGrid;
+
+	// get dof distribution
+	SmartPtr<DoFDistribution> dd = spF->dd();
+
+	//	get iterators
+	typename DoFDistribution::traits<TElem>::iterator iter, iterEnd;
+	iter = dd->begin<TElem>(SurfaceView::ALL); // SurfaceView::MG_ALL
+	iterEnd = dd->end<TElem>(SurfaceView::ALL);
+
+
+	// clear container
+	vNeighbors.clear();
+
+	// get all sides in order
+	typename TGrid::template traits<TSide>::secure_container vSide;
+	grid.associated_elements_sorted(vSide, elem);
+
+	//	begin marking
+	grid.begin_marking();
+
+	//	mark the elem
+	grid.mark(elem);
+
+	////////////////////////////////////////////////////////////////////////////
+	// loop all sides
+	////////////////////////////////////////////////////////////////////////////
+	for(size_t s = 0; s < vSide.size(); ++s){
+
+		// get all connected elements
+		typename TGrid::template traits<TElem>::secure_container vElemOfSide;
+		grid.associated_elements(vElemOfSide, vSide[s]);
+
+		// if no elem found: internal error
+		if(vElemOfSide.size() == 0)
+			UG_THROW("Huh, why no element? Should be at least the considered elem itself");
+
+		////////////////////////////////////////////////////////////////////////////
+		// handle sides with only one element
+		// ( if only one element for side, it must be a boundary element or contrained)
+		////////////////////////////////////////////////////////////////////////////
+		if(vElemOfSide.size() == 1){
+
+			////////////////////////////////////////////////////////////////////////////
+			// handle constraint edge
+			// 
+			////////////////////////////////////////////////////////////////////////////
+			if(vSide[s]->is_constrained()){
+
+				TContrainedSide* cSide = dynamic_cast<TContrainedSide*>(vSide[s]);					
+				TSide* constrainingSide = dynamic_cast<TSide*>(cSide->get_constraining_object());
+
+				typename TGrid::template traits<TElem>::secure_container vElemOfContrainingSide;
+				grid.associated_elements(vElemOfContrainingSide, constrainingSide);
+				if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be 2 at constraining side");
+
+				for(size_t nbr = 0; nbr < vElemOfContrainingSide.size(); ++nbr){
+
+					TElem* neighborElem = vElemOfContrainingSide[nbr];
+					if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+
+					grid.mark(neighborElem);					
+					vNeighbors.push_back(neighborElem);
+				} 
+			}
+		}
+		////////////////////////////////////////////////////////////////////////////
+		// handle hanging sides with 2 elements
+		// ( coupled to all fine neighbor elems )
+		////////////////////////////////////////////////////////////////////////////
+		else if(vSide[s]->is_constraining()){
+
+			TContrainingSide* cSide = dynamic_cast<TContrainingSide*>(vSide[s]);
+			const size_t numConstrained = cSide->template num_constrained<TSide>();
+
+			for(size_t cs = 0; cs < numConstrained; ++cs){
+
+				TSide* constrainedSide = cSide->template constrained<TSide>(cs);
+
+				// neighbor elem
+				typename TGrid::template traits<TElem>::secure_container vElemOfContrainedSide;
+				grid.associated_elements(vElemOfContrainedSide, constrainedSide);
+				if(vElemOfContrainedSide.size() != 1) UG_THROW("Huh, should be 1 at constrained side");
+				TElem* neighborElem = vElemOfContrainedSide[0];
+				grid.mark(neighborElem);					
+				vNeighbors.push_back(neighborElem);
+
+			}
+
+		}
+		////////////////////////////////////////////////////////////////////////////
+		// regular refined sides
+		// (find all direct face neighbors)
+		////////////////////////////////////////////////////////////////////////////
+		else{
+			for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
+
+				// if more than 2 elem found: internal error
+				if(vElemOfSide.size() != 2)
+					UG_THROW("Huh, why more than 2 elements of side?");
+
+				// neighbor elem
+				TElem* neighborElem = vElemOfSide[eos];
+
+				// check
+				if(grid.template num_children<TElem,TElem>(neighborElem) > 0) 
+					UG_THROW("Huh, why not on top level?");
+
+				// skip self
+				if(neighborElem == elem) continue;
+				grid.mark(neighborElem);					
+				vNeighbors.push_back(neighborElem);
+			}
+		}
+		
+	} // end loop sides
+
+	////////////////////////////////////////////////////////////////////////////
+	// loop all sides (FOR DIAG COUPLING)
+	////////////////////////////////////////////////////////////////////////////
+	for(size_t s = 0; s < vSide.size(); ++s){
+
+		// get all connected elements
+		typename TGrid::template traits<TElem>::secure_container vElemOfSide;
+		grid.associated_elements(vElemOfSide, vSide[s]);
+
+		// if no elem found: internal error
+		if(vElemOfSide.size() == 0)
+			UG_THROW("Huh, why no element? Should be at least the considered elem itself");
+
+
+		////////////////////////////////////////////////////////////////////////////
+		// diagonal elements (only coupled via a common vertex)
+		// (find all vertex coupled neighbors)
+		////////////////////////////////////////////////////////////////////////////
+		
+		// loop vertices of side
+		Vertex* const* vVertex = vSide[s]->vertices();
+		const size_t numVertex = vSide[s]->num_vertices();
+
+
+		for(size_t vrt = 0; vrt < numVertex; ++vrt)
+		{
+			// collect all diag leaf-elems on same level
+			typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+			grid.associated_elements(vVertexNeighbor, vVertex[vrt]);
+			for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+			{
+				TElem* neighborElem = vVertexNeighbor[eov];
+				if(grid.is_marked(neighborElem)) continue;			
+				if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+
+				grid.mark(neighborElem);
+				vNeighbors.push_back(neighborElem);
+			}
+
+			// collect all diag leaf-elems on finer level
+			if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) > 0){
+
+				if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) != 1)
+					UG_THROW("Huh, why more than one vertex child?")
+
+				Vertex* fineVrt = grid.template get_child<Vertex,Vertex>(vVertex[vrt], 0);
+
+				typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+				grid.associated_elements(vVertexNeighbor, fineVrt);
+				for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+				{
+					TElem* neighborElem = vVertexNeighbor[eov];
+					if(grid.is_marked(neighborElem)) continue;			
+					if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+		
+					grid.mark(neighborElem);
+					vNeighbors.push_back(neighborElem);
+				}
+
+			}
+
+			// collect all diag leaf-elems on coarser level
+			if(grid.get_parent(vVertex[vrt]) != 0){
+
+
+				Vertex* coarseVrt = dynamic_cast<Vertex*>(grid.get_parent(vVertex[vrt]));
+
+				if(coarseVrt != 0){
+
+					typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+					grid.associated_elements(vVertexNeighbor, coarseVrt);
+					for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+					{
+						TElem* neighborElem = vVertexNeighbor[eov];
+						if(grid.is_marked(neighborElem)) continue;			
+						if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+			
+						grid.mark(neighborElem);
+						vNeighbors.push_back(neighborElem);
+					}
+				}
+			}
+
+
+		}
+	} // end side loop
+
+
+	//	end marking
+	grid.end_marking();
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // By taylor expansion
 ////////////////////////////////////////////////////////////////////////////////
@@ -1118,8 +1359,10 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 
 		//	remember revision counter of approx space
 		m_ApproxSpaceRevision = approxSpace->revision();
-	}
 
+		// debug output
+		write_stencil_matrix_debug(spChi, "STENCIL", call);
+	}
 
 
 	////////////////////////////////////////////////////////////////////////////
@@ -1185,6 +1428,11 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 		// update relative density (and theredy also driving force)
 		////////////////////////////////////////////////////////////////////////////
 
+
+		///////////// BEBUG (begin) ///////////////
+		write_debug(m_spLaplaceChi, "LaplaceChi", call, -1);
+		///////////// BEBUG (end)  ///////////////
+
 		for(size_t i = 0; i < m_vIndex.size(); ++i)
 		{
 				 number& chi = (*spChi)[i];
@@ -1227,9 +1475,227 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 
 
 
+
+template <typename TDomain>
+void RelativeDensityUpdater<TDomain>::
+set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter)
+{
+	m_spDebugWriter = spDebugWriter;
+}
+
+template <typename TDomain>
+void RelativeDensityUpdater<TDomain>::
+write_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, 
+			int call, int iter)
+{
+	if(m_spDebugWriter.invalid()) return;
+
+//	build name
+	GridLevel gl = spGF->grid_level();
+	std::stringstream ss;
+	ss << "InDensityUpdate_" << name ;
+	ss << "_call" << std::setfill('0') << std::setw(3) << call;
+	if (iter >= 0) ss << "_iter" << std::setfill('0') << std::setw(3) << iter;
+	ss << ".vec";
+
+//	write
+	m_spDebugWriter->set_grid_level(gl);
+	m_spDebugWriter->write_vector(*spGF, ss.str().c_str());
+}
+
+template <typename TDomain>
+void RelativeDensityUpdater<TDomain>::
+write_stencil_matrix_debug(
+			SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, 
+			std::string name, int call)
+{
+	if(m_spDebugWriter.invalid()) return;
+
+//	build name
+	GridLevel gl = spGF->grid_level();
+	int numDoFs = spGF->num_dofs();
+	std::stringstream ss;
+	ss << "InDensityUpdate_" << name ;
+	ss << "_call" << std::setfill('0') << std::setw(3) << call;
+	//if (iter >= 0) ss << "_iter" << std::setfill('0') << std::setw(3) << iter;
+	ss << ".mat";
+
+	typedef CPUAlgebra::matrix_type TMat;			
+
+	TMat A;
+	A.resize_and_clear(numDoFs,numDoFs);
+
+	for(size_t i = 0; i < m_vStencil.size(); ++i){
+		for(size_t k = 0; k < m_vStencil[i].size(); ++k){
+			const int j = m_vIndex[i][k];
+
+			A(i,j) = m_vStencil[i][k];
+		}
+	}
+
+//	write
+	m_spDebugWriter->set_grid_level(gl);
+	m_spDebugWriter->write_matrix(A, ss.str().c_str());
+
+}
+
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Marking
 ////////////////////////////////////////////////////////////////////////////////
+
+template<typename TDomain>
+void MarkForAdaption_ValueRangeIndicator(
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
+					IRefiner& refiner,
+					number lowerValueToCoarsen, 
+					number minValueToRefine, number maxValueToRefine,
+					number upperValueToCoarsen,
+					number maxJumpDiffToCoarsen,
+					number minJumpDiffToRefine,
+					int maxLevel)
+{
+	PROFILE_FUNC_GROUP("Small Strain Mech");
+
+	static const int dim = TDomain::dim;
+	typedef typename grid_dim_traits<dim>::element_type TElem; 
+	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
+	typedef typename TDomain::position_accessor_type	position_accessor_type;
+	//position_accessor_type& aaPos = spChi->domain()->position_accessor();
+
+	const int fct = 0; // \todo: generalize
+
+	///////////////////////////
+	// checks
+	///////////////////////////
+
+	if( minValueToRefine > maxValueToRefine ) UG_THROW("minValueToRefine > maxValueToRefine")
+	if( lowerValueToCoarsen > minValueToRefine ) UG_THROW("lowerValueToCoarsen > minValueToRefine")
+	if( upperValueToCoarsen < maxValueToRefine ) UG_THROW("upperValueToCoarsen < maxValueToRefine")
+
+
+
+	///////////////////////////
+	// marking
+	///////////////////////////
+
+	//	reset counter
+	int numMarkedRefine = 0, numMarkedCoarse = 0;
+
+
+	std::vector<MathVector<dim> > vCornerCoords;
+	MathVector<dim> ElemCenter;
+
+	std::vector<TElem*> vNeighbors;
+
+	//	loop elements for marking
+	const_iterator iter = spChi->template begin<TElem>();
+	const_iterator iterEnd = spChi->template end<TElem>();
+	for(; iter != iterEnd; ++iter)
+	{
+		//	get element
+		TElem* elem = *iter;
+
+		std::vector<DoFIndex> ind;
+		if(spChi->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+		const number val = DoFRef(*spChi, ind[0]);
+
+
+		CollectSurfaceNeighbors(spChi, elem, vNeighbors);
+
+	//	check whether all children of e of type TElem have similar values
+		bool neighborsHaveLargeJump = false;
+		for(size_t i = 0; i < vNeighbors.size(); ++i){
+
+			TElem* neighbor = vNeighbors[i];
+
+			std::vector<DoFIndex> ind;
+			if(spChi->inner_dof_indices(neighbor, fct, ind) != 1) UG_THROW("Wrong number dofs");
+			const number valNeighbor = DoFRef(*spChi, ind[0]);
+
+			if(fabs(val - valNeighbor) > minJumpDiffToRefine)
+			{
+				neighborsHaveLargeJump = true;
+				break;
+			}
+		}
+
+		//	marks for refinement
+		if(      (val >= minValueToRefine && val <= maxValueToRefine) 
+		     ||  (neighborsHaveLargeJump) )
+		{
+
+			if(spChi->dd()->multi_grid()->get_level(elem) < maxLevel)
+			{
+				refiner.mark(elem, RM_REFINE);
+				numMarkedRefine++;
+			}
+
+			continue;
+		}
+
+		//	marks for coarsening
+		if( val < lowerValueToCoarsen || val > upperValueToCoarsen)
+		{
+
+		//	get the parent
+			TElem* parent = dynamic_cast<TElem*>(spChi->dd()->multi_grid()->get_parent(elem));
+			if(parent){
+
+			//	check whether all children of e of type TElem have similar values
+				bool allChildHaveSimilarValue = true;
+				size_t numChildren = spChi->dd()->multi_grid()->template num_children<TElem>(parent);
+				for(size_t i = 0; i < numChildren; ++i){
+
+					TElem* child = spChi->dd()->multi_grid()->template get_child<TElem>(parent, i);
+
+					// check if covered: cannot coarsen covered children (i.e. with children themselves)
+					if(spChi->dd()->multi_grid()->template num_children<TElem>(child) > 0){
+						allChildHaveSimilarValue = false;
+						break;						
+					}
+
+					// check if values are the same for all (leaf-)children
+					std::vector<DoFIndex> ind;
+					if(spChi->inner_dof_indices(child, fct, ind) != 1) UG_THROW("Wrong number dofs");
+					const number valChild = DoFRef(*spChi, ind[0]);
+					if(fabs(val - valChild) > maxJumpDiffToCoarsen)
+					{
+						allChildHaveSimilarValue = false;
+						break;
+					}
+				}
+			
+
+				if(allChildHaveSimilarValue){					
+					refiner.mark(elem, RM_COARSEN);
+					numMarkedCoarse++;
+				}
+			}
+
+		}
+
+	}
+
+	///////////////////////////
+	// print infos
+	///////////////////////////
+	UG_LOG("MarkForAdaption_ValueRangeIndicator:\n")
+#ifdef UG_PARALLEL
+	if(pcl::NumProcs() > 1)
+	{
+		UG_LOG("  >>> Marked on Proc "<<pcl::ProcRank()<<": refine: " << numMarkedRefine << ", coarsen : " << numMarkedCoarse << "\n");
+		pcl::ProcessCommunicator com;
+		int numMarkedRefineLocal = numMarkedRefine, numMarkedCoarseLocal = numMarkedCoarse;
+		numMarkedRefine = com.allreduce(numMarkedRefineLocal, PCL_RO_SUM);
+		numMarkedCoarse = com.allreduce(numMarkedCoarseLocal, PCL_RO_SUM);
+	}
+#endif
+
+	UG_LOG("  >>> Marked refine: " << numMarkedRefine << ", coarsen: " << numMarkedCoarse << "\n" );
+}
 
 
 template<typename TDomain>
