@@ -254,6 +254,7 @@ static void Domain(Registry& reg, string grp)
 		reg.add_function("MarkDamage", &MarkDamage<TDomain>, grp);
 		reg.add_function("MarkForAdaption_ValueRangeIndicator", &MarkForAdaption_ValueRangeIndicator<TDomain>, grp);
 		reg.add_function("HadamardProd", &HadamardProd<TDomain>, grp);
+		reg.add_function("MinMaxElementDiameter", &MinMaxElementDiameter<TDomain>, grp);
 
 		reg.add_function("DamageStatistic", &DamageStatistic<TDomain>, grp);
 	}

@@ -2023,6 +2023,50 @@ void HadamardProd(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spFPsi0,
 
 
 
+template<typename TDomain>
+std::vector<number> MinMaxElementDiameter(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF)
+{
+	PROFILE_FUNC_GROUP("Small Strain Mech");
+
+	static const int dim = TDomain::dim;
+	typedef typename grid_dim_traits<dim>::element_type TElem; 
+	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
+
+	typename TDomain::grid_type& grid = *(spF->domain()->grid());
+	typename TDomain::position_accessor_type& aaPos = spF->domain()->position_accessor();
+
+	// loop all elems 
+	const_iterator iter = spF->template begin<TElem>();
+	const_iterator iterEnd = spF->template end<TElem>();
+
+	//	loop elements for marking
+	number max = 0.0;
+	number min = std::numeric_limits<number>::max();
+	for(; iter != iterEnd; ++iter){
+		const number size = ElementDiameterSq(grid, aaPos, *iter);
+		max = std::max(max, size);
+		min = std::min(min, size);
+	}
+
+#ifdef UG_PARALLEL
+	// share value between all procs
+	pcl::ProcessCommunicator com;
+	max = com.allreduce(max, PCL_RO_MAX);
+	min = com.allreduce(min, PCL_RO_MIN);
+#endif
+
+	std::vector<number> vRes;
+
+	vRes.push_back( std::sqrt(min) );
+	vRes.push_back( std::sqrt(max) );
+
+	return vRes;
+
+}
+
+
+
+
 } // end namespace SmallStrainMechanics
 }// namespace ug
 
