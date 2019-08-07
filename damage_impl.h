@@ -1328,11 +1328,12 @@ write_stencil_matrix_debug(
 
 
 template <typename TDomain>
-bool RelativeDensityUpdater<TDomain>::
+std::vector<number> RelativeDensityUpdater<TDomain>::
 solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 		SmartPtr<GridFunction<TDomain, CPUAlgebra> > spDrivingForce,
 		const number betaStar, const number etaChiStar, 
-		const number chiMin, const number dt, const int p)
+		const number chiMin, const number dt, const int p,
+		const number rho_target, const number MassTol)
 {
 	PROFILE_BEGIN_GROUP(RelativeDensityUpdater_solve, "Small Strain Mech");
 	static int call = 0; call++;	
@@ -1353,6 +1354,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 	{
 		m_spElemSize = spChi->clone();
 		m_spLaplaceChi = spChi->clone();
+		m_spChiTrial = spChi->clone();
 
 		// (re-)initialize setting
 		InitLaplacianByPartialIntegration(m_spElemSize, m_vStencil, m_vIndex, m_quadRuleType, true);
@@ -1380,12 +1382,17 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 
 	const number dt_chi = dt / n;
 
+	int numBisect = 0; 
 
+	// loop over inner (smaller) timesteps
 	for(int j = 0; j < n; ++j)
 	{
 		////////////////////////////////////////////////////////////////////////////
 		// compute parameter beta, eta
 		////////////////////////////////////////////////////////////////////////////
+
+		number min_p_chi = std::numeric_limits<number>::max();
+		number max_p_chi = std::numeric_limits<number>::min();
 
 		number int_g_p = 0.0, int_g = 0.0;
 		for(size_t i = 0; i < m_vIndex.size(); ++i)
@@ -1393,11 +1400,15 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 			const number chi = (*spChi)[i];
 			const number vol = (*m_spElemSize)[i];
 			const number p_chi = (*spDrivingForce)[i];
+			(*m_spLaplaceChi)[i] = Lambda(i, spChi);
 
 			const number g = (chi - chiMin) * (1.0 - chi);
 
 			int_g += vol * g;
 			int_g_p += vol * g * p_chi;
+
+			min_p_chi = std::min(min_p_chi, p_chi);
+			max_p_chi = std::max(max_p_chi, p_chi);
 		}
 
 		const number p_w = int_g_p / int_g;
@@ -1409,7 +1420,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 		////////////////////////////////////////////////////////////////////////////
 		// compute lagrange multiplier lambda
 		////////////////////////////////////////////////////////////////////////////
-
+/*
 		number int_1 = 0.0, int_partPsi = 0.0, int_LaplaceChi = 0.0;
 		for(size_t i = 0; i < m_vIndex.size(); ++i)
 		{
@@ -1423,54 +1434,100 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 		}
 
 		const number lambda =  (1.0 / int_1) * (int_partPsi + beta * int_LaplaceChi);
-
+*/
 		////////////////////////////////////////////////////////////////////////////
 		// update relative density (and theredy also driving force)
 		////////////////////////////////////////////////////////////////////////////
 
 
 		///////////// BEBUG (begin) ///////////////
-		write_debug(m_spLaplaceChi, "LaplaceChi", call, -1);
+//		write_debug(m_spLaplaceChi, "LaplaceChi", call, -1);
 		///////////// BEBUG (end)  ///////////////
+  	    number Llow = (min_p_chi - eta_chi);		// untere Grenze für Lagrangemultiplikator
+		number Lhigh = (max_p_chi + eta_chi);	// obere Grenze für Lagrangemultiplikator
+	 	number L_tr = 0.0; // why not: (Lhigh + Llow)/2.0; ???
 
-		for(size_t i = 0; i < m_vIndex.size(); ++i)
-		{
-				 number& chi = (*spChi)[i];
-				 number& p_chi = (*spDrivingForce)[i];
-				 number chi_old = chi;
-//			const number vol = (*m_spElemSize)[i];
-			const number laplaceChi = (*m_spLaplaceChi)[i];
+	 	// bisection to find lagrange param
+	 	while(true)
+	 	{
+	 		numBisect++;
 
-			// update relative density
-			chi += (dt_chi / eta_chi) * (p_chi - lambda + beta * laplaceChi);
+			number Vol_Omega = 0.0;
+	 		number rho_tr = 0.0;
 
-///////////// BEBUG (begin) ///////////////
-			if(std::isfinite(chi) == false){
+	 		// Evolution equation for each element (trial step)
+			for(size_t i = 0; i < m_vIndex.size(); ++i)
+			{
+				const number chi = (*spChi)[i];
+				const number p_chi = (*spDrivingForce)[i];
+				const number laplaceChi = (*m_spLaplaceChi)[i];
+				const number vol = (*m_spElemSize)[i];
 
-				UG_LOG(" ###############  \n");
-				UG_LOG("chi        : " << chi << "\n");
-				UG_LOG("dt_chi     : " << dt_chi << "\n");
-				UG_LOG("eta_chi    : " << eta_chi << "\n");
-				UG_LOG("p_chi      : " << p_chi << "\n");
-				UG_LOG("lambda     : " << lambda << "\n");
-				UG_LOG("beta       : " << beta << "\n");
-				UG_LOG("laplaceChi : " << laplaceChi << "\n");
-				UG_LOG("p_w        : " << p_w << "\n");
-				UG_LOG(" ###############  \n");
-				UG_THROW("Value for chi not finite, but: " << chi);
+				number& chi_tr = (*m_spChiTrial)[i];
+
+				// update relative density
+				chi_tr = chi + (dt_chi / eta_chi) * (p_chi - L_tr + beta * laplaceChi);
+
+				///////////// BEBUG (begin) ///////////////
+				if(std::isfinite(chi_tr) == false){
+
+					UG_LOG(" ###############  \n");
+					UG_LOG("chi_tr     : " << chi_tr << "\n");
+					UG_LOG("dt_chi     : " << dt_chi << "\n");
+					UG_LOG("eta_chi    : " << eta_chi << "\n");
+					UG_LOG("p_chi      : " << p_chi << "\n");
+					UG_LOG("lambda     : " << L_tr << "\n");
+					UG_LOG("beta       : " << beta << "\n");
+					UG_LOG("laplaceChi : " << laplaceChi << "\n");
+					UG_LOG("p_w        : " << p_w << "\n");
+					UG_LOG(" ###############  \n");
+					UG_THROW("Value for chi not finite, but: " << chi_tr);
+				}
+				////////////// BEBUG (end) ///////////////
+
+				if(chi_tr > 1.0) chi_tr = 1.0;
+				if(chi_tr < chiMin) chi_tr = chiMin;
+
+				rho_tr += chi_tr * vol;
+				Vol_Omega += vol;
 			}
-////////////// BEBUG (end) ///////////////
 
-			if(chi > 1.0) chi = 1.0;
-			if(chi < chiMin) chi = chiMin;
+			rho_tr /= Vol_Omega;
+			
+			// Volume constraint
+			// trial Volume
+			if(fabs(rho_tr - rho_target) < MassTol) break; // V_tr = V_target
 
-			// update 
-			p_chi *= std::pow( (chi / chi_old), p-1);
+	        // Lagrange update		
+			if(rho_tr > rho_target) Llow = L_tr;
+			if(rho_tr < rho_target)	Lhigh = L_tr;
+			
+			L_tr = (Lhigh + Llow)/2.0;
 		}
 
+
+		// accept update
+		for(size_t i = 0; i < m_vIndex.size(); ++i)
+		{
+			number& chi = (*spChi)[i];
+			number& p_chi = (*spDrivingForce)[i];
+			const number chi_tr = (*m_spChiTrial)[i];
+
+
+			p_chi *= std::pow( (chi_tr / chi), p-1);
+
+			chi = chi_tr;
+		}
 	}
 
-	return true;
+
+	std::vector<number> vRes;
+
+	vRes.push_back((number)n);
+	vRes.push_back((number)numBisect);
+	vRes.push_back((number)numBisect/(number)n);
+
+	return vRes;
 }
 
 

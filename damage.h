@@ -176,10 +176,11 @@ class RelativeDensityUpdater
 		RelativeDensityUpdater() : m_quadRuleType(2) {}
 
 	public:
-		bool solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spDrivingForce,
-					const number betaStar, const number etaChiStar, 
-					const number chiMin, const number dt, const int p);
+		std::vector<number> solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
+									SmartPtr<GridFunction<TDomain, CPUAlgebra> > spDrivingForce,
+									const number betaStar, const number etaChiStar, 
+									const number chiMin, const number dt, const int p,
+									const number rho_target, const number MassTol);
 
 		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
 
@@ -211,6 +212,7 @@ class RelativeDensityUpdater
 
 		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spElemSize;
 		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spLaplaceChi;
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spChiTrial;
 };
 
 
