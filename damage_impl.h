@@ -173,11 +173,11 @@ void CollectSurfaceNeighbors(
 		// (find all direct face neighbors)
 		////////////////////////////////////////////////////////////////////////////
 		else{
-			for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
+			// if more than 2 elem found: internal error
+			if(vElemOfSide.size() != 2)
+				UG_THROW("Huh, why more than 2 elements of side?");
 
-				// if more than 2 elem found: internal error
-				if(vElemOfSide.size() != 2)
-					UG_THROW("Huh, why more than 2 elements of side?");
+			for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
 
 				// neighbor elem
 				TElem* neighborElem = vElemOfSide[eos];
@@ -354,8 +354,6 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 	////////////////////////////////////////////////////////////////////////////
 	for(size_t s = 0; s < vSide.size(); ++s){
 
-//				UG_LOG("########  Boundary Side nr " << s << ":   ")
-
 		// get all connected elements
 		typename TGrid::template traits<TElem>::secure_container vElemOfSide;
 		grid.associated_elements(vElemOfSide, vSide[s]);
@@ -504,10 +502,12 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 		typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
 		grid.associated_elements(vVertexNeighbor, vVertex[vrt]);
 
+		// collect all diag leaf-elems on same level
 		for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
 		{
 			TElem* neighborElem = vVertexNeighbor[eov];
 			if(grid.is_marked(neighborElem)) continue;
+			if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
 			
 			grid.mark(neighborElem);
 			vElem.push_back(neighborElem);
@@ -522,8 +522,75 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 			CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
 			AveragePositions<dim>(vDistance.back(), vCornerCoords);
 			VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
+		}
+
+
+		// collect all diag leaf-elems on finer level
+		if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) > 0){
+
+			if(grid.template num_children<Vertex,Vertex>(vVertex[vrt]) != 1)
+				UG_THROW("Huh, why more than one vertex child?")
+
+			Vertex* fineVrt = grid.template get_child<Vertex,Vertex>(vVertex[vrt], 0);
+
+			typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+			grid.associated_elements(vVertexNeighbor, fineVrt);
+			for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+			{
+				TElem* neighborElem = vVertexNeighbor[eov];
+				if(grid.is_marked(neighborElem)) continue;			
+				if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+	
+				grid.mark(neighborElem);
+				vElem.push_back(neighborElem);
+
+				// add index
+				std::vector<DoFIndex> ind;
+				if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+				vIndex.push_back(ind[0][0]);
+
+				// add distance
+				vDistance.resize(vDistance.size()+1);
+				CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
+				AveragePositions<dim>(vDistance.back(), vCornerCoords);
+				VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
+			}
 
 		}
+
+		// collect all diag leaf-elems on coarser level
+		if(grid.get_parent(vVertex[vrt]) != 0){
+
+			Vertex* coarseVrt = dynamic_cast<Vertex*>(grid.get_parent(vVertex[vrt]));
+
+			if(coarseVrt != 0){
+
+				typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
+				grid.associated_elements(vVertexNeighbor, coarseVrt);
+				for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
+				{
+					TElem* neighborElem = vVertexNeighbor[eov];
+					if(grid.is_marked(neighborElem)) continue;			
+					if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
+		
+					grid.mark(neighborElem);
+					vElem.push_back(neighborElem);
+
+					// add index
+					std::vector<DoFIndex> ind;
+					if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+					vIndex.push_back(ind[0][0]);
+
+					// add distance
+					vDistance.resize(vDistance.size()+1);
+					CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
+					AveragePositions<dim>(vDistance.back(), vCornerCoords);
+					VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
+				}
+			}
+		}
+
+
 	}
 	if(dim == 3) UG_THROW("DamageFunctionUpdater: This is 2d only --- extend to 3d by searching for 3 additional neighbors");
 
@@ -1019,14 +1086,14 @@ void InitLaplacian_TaylorExpansion(
 
 		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF);
 
-		const int numNeighborsRequred = 2*dim + (dim * (dim-1)) / 2;
+		const int numNeighborsRequired = 2*dim + (dim * (dim-1)) / 2;
 		const int numSideNeighbors = std::pow(2,dim);
-		if(vNbrIndex.size() < numNeighborsRequred || vDistance.size() < numNeighborsRequred)
+		if(vNbrIndex.size() < numNeighborsRequired || vDistance.size() < numNeighborsRequired)
 			UG_THROW("Wrong number of neighbors detected: " << vNbrIndex.size());
 
 		// select additional neighbors beside the side connecting elems
 		if(dim == 3) UG_THROW("DamageFunctionUpdater: This is 2d only --- extend to 3d by looking for 3 additional neighbors");
-		if(numNeighborsRequred != numSideNeighbors+1) UG_THROW("DamageFunctionUpdater: Only 2d implemented")
+		if(numNeighborsRequired != numSideNeighbors+1) UG_THROW("DamageFunctionUpdater: Only 2d implemented")
 
 		// loop all "additional" neighbors (i.e. not those for sides on full refined meshes)
 		// to find the clostest to choose
@@ -1046,9 +1113,9 @@ void InitLaplacian_TaylorExpansion(
 		// Create interpolation matrix and invert
 		////////////////////////////////////////////////////////////////////////////
 
-		BlockInv.resize(numNeighborsRequred, numNeighborsRequred);
+		BlockInv.resize(numNeighborsRequired, numNeighborsRequired);
 		BlockInv = 0.0;
-		for (size_t j = 0; j < numNeighborsRequred; ++j)
+		for (size_t j = 0; j < numNeighborsRequired; ++j)
 		{
 			for (int d = 0; d < dim; ++d)
 				BlockInv(j,d) = vDistance[j][d];
@@ -1063,7 +1130,7 @@ void InitLaplacian_TaylorExpansion(
 			for (int d = 0; d < dim; ++d)
 				BlockInv(j,cnt++) = 0.5 * vDistance[j][d] * vDistance[j][d];
 
-			if(cnt != numNeighborsRequred)
+			if(cnt != numNeighborsRequired)
 				UG_THROW("Wrong number of equations")
 		}
 
@@ -1076,11 +1143,11 @@ void InitLaplacian_TaylorExpansion(
 
 ///////////// BEBUG (begin) ///////////////
 /*
-		for (size_t i = 0; i < numNeighborsRequred; ++i){
-			for (size_t j = 0; j < numNeighborsRequred; ++j){
+		for (size_t i = 0; i < numNeighborsRequired; ++i){
+			for (size_t j = 0; j < numNeighborsRequired; ++j){
 
 				number res = 0.0;
-				for(size_t k = 0; k < numNeighborsRequred; ++k)
+				for(size_t k = 0; k < numNeighborsRequired; ++k)
 					res += Block(i,k) * BlockInv(k,j);
 
 				if(i == j){
@@ -1121,21 +1188,21 @@ void InitLaplacian_TaylorExpansion(
 		const size_t i = ind[0][0];
 
 		vStencil[i].clear();
-		vStencil[i].resize(numNeighborsRequred+1);
+		vStencil[i].resize(numNeighborsRequired+1);
 		vStencil[i][0] = 0.0;
 
-		for (size_t k = 0; k < numNeighborsRequred; ++k){
+		for (size_t k = 0; k < numNeighborsRequired; ++k){
 			vStencil[i][k+1] = 0.0;
 			for (int d = 0; d < dim; ++d){
-					vStencil[i][k+1] += BlockInv( (numNeighborsRequred-dim)+d,  k);
-					vStencil[i][0]   -= BlockInv( (numNeighborsRequred-dim)+d,  k);
+					vStencil[i][k+1] += BlockInv( (numNeighborsRequired-dim)+d,  k);
+					vStencil[i][0]   -= BlockInv( (numNeighborsRequired-dim)+d,  k);
 			}
 		}
 		
 		vIndex[i].clear();
-		vIndex[i].resize(numNeighborsRequred+1);
+		vIndex[i].resize(numNeighborsRequired+1);
 		vIndex[i][0] = i;
-		for (size_t k = 0; k < numNeighborsRequred; ++k){
+		for (size_t k = 0; k < numNeighborsRequired; ++k){
 			vIndex[i][k+1] = vNbrIndex[k];
 		}
 	}
@@ -1184,24 +1251,6 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_solve, "Small Strain Mech");
 
-	switch(m_discType){
-		case _PARTIAL_INTEGRATION_: return solve_PartialIntegration(spF,spPsi0,beta,r,eps,maxIter,dampNewton);
-		case _TAYLOR_EXPANSION_: return solve_TaylorExpansion(spF,spPsi0,beta,r,eps,maxIter,dampNewton);
-		default:
-		UG_THROW("DamageFunctionUpdater: internal error, unrecognized type number '"<<m_discType<<"'.");
-	}
-}
-
-template <typename TDomain>
-bool DamageFunctionUpdater<TDomain>::
-solve_PartialIntegration(	
-		SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-		SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
-		const number beta, const number r, 
-		const number eps, const int maxIter, const number dampNewton)
-{
-	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_solve_PartialIntegration, "Small Strain Mech");
-
 	////////////////////////////////////////////////////////////////////////////
 	// check if has to be rebuild 
 	////////////////////////////////////////////////////////////////////////////
@@ -1216,8 +1265,19 @@ solve_PartialIntegration(
 	// check revision counter if grid / approx space has changed since last call
 	if(m_ApproxSpaceRevision != approxSpace->revision())
 	{
+		PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init, "Small Strain Mech");
 		// (re-)initialize setting
-		InitLaplacian_PartialIntegration(spF, m_vStencil, m_vIndex, m_quadRuleType);
+		switch(m_discType){
+			case _PARTIAL_INTEGRATION_: 
+				InitLaplacian_PartialIntegration(spF, m_vStencil, m_vIndex, m_quadRuleType);
+				break;
+			case _TAYLOR_EXPANSION_: 
+				InitLaplacian_TaylorExpansion(spF, m_vStencil, m_vIndex);
+				break;
+			default:
+				UG_THROW("DamageFunctionUpdater: internal error, "
+							"unrecognized type number '"<<m_discType<<"'.");
+		}
 
 		//	remember revision counter of approx space
 		m_ApproxSpaceRevision = approxSpace->revision();
@@ -1229,8 +1289,8 @@ solve_PartialIntegration(
 	// apply newton method 
 	////////////////////////////////////////////////////////////////////////////
 
-//			const size_t numElem = m_vIndex.size();
-//			const number sqrtNumElem = sqrt(numElem);
+//	const size_t numElem = m_vIndex.size();
+//	const number sqrtNumElem = sqrt(numElem);
 
 	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spLambdaOld = spF->clone();
 	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPhi = spF->clone();
@@ -1339,156 +1399,6 @@ solve_PartialIntegration(
 
 	return true;
 }
-
-
-template <typename TDomain>
-bool DamageFunctionUpdater<TDomain>::
-solve_TaylorExpansion(	
-		SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-		SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
-		const number beta, const number r, 
-		const number eps, const int maxIter, const number dampNewton)
-{
-	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_solve_TaylorExpansion, "Small Strain Mech");
-
-	////////////////////////////////////////////////////////////////////////////
-	// check if has to be rebuild 
-	////////////////////////////////////////////////////////////////////////////
-
-	static int call = 0; call++;	
-
-	// get approximation space
-	ConstSmartPtr<ApproximationSpace<TDomain> > approxSpace = spF->approx_space();
-	if(approxSpace != spPsi0->approx_space())
-		UG_THROW("DamageFunctionUpdater<TDomain>::solve: expected same ApproximationSpace for f and psi0");
-
-	// check revision counter if grid / approx space has changed since last call
-	if(m_ApproxSpaceRevision != approxSpace->revision())
-	{
-		// (re-)initialize setting
-		InitLaplacian_TaylorExpansion(spF, m_vStencil, m_vIndex);
-
-		//	remember revision counter of approx space
-		m_ApproxSpaceRevision = approxSpace->revision();
-	}
-
-
-
-	////////////////////////////////////////////////////////////////////////////
-	// apply newton method 
-	////////////////////////////////////////////////////////////////////////////
-
-//			const size_t numElem = m_vIndex.size();
-//			const number sqrtNumElem = sqrt(numElem);
-
-	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spLambdaOld = spF->clone();
-	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPhi = spF->clone();
-
-
-	// number normPhi =  std::numeric_limits<number>::max();
-	int iterCnt = 0;
-
-///////////// BEBUG (begin) ///////////////
-/*	for(size_t i = 0; i < m_vIndex.size(); ++i)
-		(*spLambdaOld)[i] = DLambda(i);
-	write_debug(spLambdaOld, "DLambda", call, iterCnt);
-
-	write_debug(spPsi0, "Psi0", call, iterCnt);
-	write_debug(spF, "F", call, iterCnt);
-*///////////// BEBUG (end) ///////////////
-
-	number maxPhi = std::numeric_limits<number>::max();
-
-//	while(normPhi > eps * sqrtNumElem && (iterCnt++ <= maxIter) )
-	while(maxPhi > eps && (iterCnt++ <= maxIter) )
-	{
-		// normPhi = 0.0;
-		maxPhi  = 0.0;
-
-		for(size_t i = 0; i < m_vIndex.size(); ++i)
-			(*spLambdaOld)[i] = Lambda(i, spF);
-
-///////////// BEBUG (begin) ///////////////
-//		write_debug(spLambdaOld, "Lambda", call, iterCnt);
-///////////// BEBUG (end) ///////////////
-
-		for(size_t i = 0; i < m_vIndex.size(); ++i)
-		{
-			const number lambda = (*spLambdaOld)[i];
-			const number& psi0 = (*spPsi0)[i];
-			number& f = (*spF)[i];
-
-			number phi = f * ( psi0  - beta * lambda) - r;
-
-///////////// BEBUG (begin) ///////////////
-//			(*spPhi)[i] = phi;
-///////////// BEBUG (end) ///////////////
-
-
-			if(phi < eps){
-//						phi = 0;
-//						normPhi += 0.0 * 0.0;
-			} else {
-
-				// ORIGINAL
-				// f = f - (phi / (psi0 - beta * (lambda + f * DLambda(i)) ));
-
-
-				// DAMPED NEWTON
-				f = f - dampNewton * (phi / (psi0 - beta * (lambda + f * DLambda(i)) ));
-
-				// QUASI-NEWTON
-				//f = f - (1/10)*(phi / (psi0 - beta * lambda));
-
-				//  FIXPOINT
-				//f =  phiScale * (f * ( psi0  - beta * lambda) - r) + f;
-
-
-///////////// BEBUG (begin) ///////////////
-				if(std::isfinite(f) == false){
-
-					UG_LOG(" ###############  \n");
-					UG_LOG("f     : " << f << "\n");
-					UG_LOG("psi0  : " << psi0 << "\n");
-					UG_LOG("lambda: " << lambda << "\n");
-					UG_LOG("DLambda: " << DLambda(i) << "\n");
-					UG_LOG("beta  : " << beta << "\n");
-					UG_LOG("r     : " << r << "\n");
-					UG_LOG("phi   : " << phi << "\n");
-					UG_LOG(" ###############  \n");
-					UG_THROW("Value for f not finite, but: " << f);
-				}
-////////////// BEBUG (end) ///////////////
-
-				// normPhi += phi*phi;
-				maxPhi = std::max(maxPhi, phi);
-			}
-		}
-
-///////////// BEBUG (begin) ///////////////
-//		write_debug(spPhi, "Phi", call, iterCnt);
-//		write_debug(spF, "F", call, iterCnt);
-////////////// BEBUG (end) ///////////////
-
-		// normPhi = sqrt(normPhi);
-//		UG_LOG(" ######################### (end sweep) ###################################  \n");
-//		UG_LOG ("DamageFunctionUpdater: normPhi: "  << normPhi << "\n");	
-	}
-
-	m_lastNumIters = iterCnt;
-
-	if(iterCnt >= maxIter){
-		// UG_THROW("DamageFunctionUpdater: no convergence after " << iterCnt << " iterations");
-		UG_LOG("DamageFunctionUpdater: no convergence after " << iterCnt << " iterations");
-		return false;
-	}
-
-
-	UG_LOG ("DamageFunctionUpdater: maxPhi: "  << maxPhi << " after " <<iterCnt << " iterations\n");	
-
-	return true;
-}
-
 
 
 

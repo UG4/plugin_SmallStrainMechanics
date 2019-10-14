@@ -154,24 +154,6 @@ class DamageFunctionUpdater
 		std::vector< std::vector<  number > > m_vStencil;
 		std::vector< std::vector<size_t> > m_vIndex;
 
-		// DEPRECATED
-		// \{ 
-		bool solve_TaylorExpansion(	
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
-					const number beta, const number r, 
-					const number eps, const int maxIter, const number dampNewton);
-		// \}
-
-		bool solve_PartialIntegration(	
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
-					const number beta, const number r, 
-					const number eps, const int maxIter, const number dampNewton);
-
-	/////////////////////////////////////////////////
-	// Debug
-	/////////////////////////////////////////////////
 	public:
 		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
 
