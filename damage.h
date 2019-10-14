@@ -88,12 +88,22 @@ class DamageFunctionUpdater
 
 		typedef typename TDomain::position_accessor_type TPositionAccessor;
 
-		DamageFunctionUpdater() : m_quadRuleType(2) {}
+		DamageFunctionUpdater() : m_quadRuleType(2), m_discType(_PARTIAL_INTEGRATION_) {}
 
+	/////////////////////////////////////////////////
+	// Taylor Expansion
+	/////////////////////////////////////////////////
 	private:
 		// DEPRECATED
 		// \{ 
-		/*
+		//*
+		bool solve_TaylorExpansion(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					const number beta, const number r, 
+					const number eps, const int maxIter, const number dampNewton);
+
+
 		void CollectStencilNeighbors(std::vector<TElem*>& vElem,
 									 std::vector<DoFIndex>& vIndex,
 									 std::vector< MathVector<dim> >& vDistance,
@@ -104,28 +114,28 @@ class DamageFunctionUpdater
 									 SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0);
 
 
-		void init_ByTaylorExtension(	
+		void init_TaylorExpansion(	
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0);
 
-		number DLambda_ByTaylorExtension(size_t i) {return m_vDLambda[i];}
-		number Lambda_ByTaylorExtension(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF);
+		number DLambda_TaylorExpansion(size_t i) {return m_vDLambda[i];}
+		number Lambda_TaylorExpansion(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF);
 
 		std::vector< DenseMatrix<VariableArray2<number> > > m_vB;
 		std::vector< number > m_vDLambda;
-		*/
+		//*/
 		// \}
 
+	/////////////////////////////////////////////////
+	// Partial Integration
+	/////////////////////////////////////////////////
 	public:
-		bool solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
+		bool solve_PartialIntegration(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
 					const number beta, const number r, 
 					const number eps, const int maxIter, const number dampNewton);
-
-		int last_num_iterations() const {return m_lastNumIters;}
-		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
-
-		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
 
 	protected:
 		number DLambda(size_t i) {return m_vStencil[i][0];}	
@@ -137,21 +147,47 @@ class DamageFunctionUpdater
 			return res;
 		}
 
+		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
+		std::vector< std::vector<  number > > m_vStencil;
+		std::vector< std::vector<size_t> > m_vIndex;
+
+	/////////////////////////////////////////////////
+	// Info
+	/////////////////////////////////////////////////
+	public:
+		int last_num_iterations() const {return m_lastNumIters;}
+
+	protected:
+		int m_lastNumIters;
+
+	/////////////////////////////////////////////////
+	// Debug
+	/////////////////////////////////////////////////
+	public:
+		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
 
 	protected:
 		SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > m_spDebugWriter;
 		void write_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call, int iter);
 		void write_stencil_matrix_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call);
 
+
+	/////////////////////////////////////////////////
+	// Disc type
+	/////////////////////////////////////////////////
+	public:
+		void set_disc_type(const std::string& type);
+		bool solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					const number beta, const number r, 
+					const number eps, const int maxIter, const number dampNewton);
+
 	protected:
+		enum DiscType {_LEAST_SQUARES_, _TAYLOR_EXPANSION_, _PARTIAL_INTEGRATION_};
+		int m_discType;
+
 		//	approximation space revision of cached values
 		RevisionCounter m_ApproxSpaceRevision;
-
-		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
-		std::vector< std::vector<  number > > m_vStencil;
-		std::vector< std::vector<size_t> > m_vIndex;
-
-		int m_lastNumIters;
 };
 
 
