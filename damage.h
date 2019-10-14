@@ -64,12 +64,38 @@ template <int dim>
 void AveragePositions(	MathVector<dim>& vCenter, 
 						const std::vector<MathVector<dim> >& vCornerCoords);
 
+
 template <typename TDomain>
-void InitLaplacianByPartialIntegration(	
+void CollectSurfaceNeighbors(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF, // some dummy function
+					typename grid_dim_traits<TDomain::dim>::element_type* elem,
+					std::vector< typename grid_dim_traits<TDomain::dim>::element_type* >& vNeighbors);
+
+template <typename TDomain>
+void CollectStencilNeighbors_NeumannBND_IndexAndDistance
+(
+	std::vector< typename grid_dim_traits<TDomain::dim>::element_type* >& vElem,
+	std::vector<DoFIndex>& vIndex,
+	std::vector< MathVector<TDomain::dim> >& vDistance,
+	typename grid_dim_traits<TDomain::dim>::element_type* elem,
+	typename TDomain::grid_type& grid,
+	typename TDomain::position_accessor_type& aaPos,
+	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF
+);
+
+template <typename TDomain>
+void InitLaplacian_TaylorExpansion(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					std::vector< std::vector<  number > >& vStencil,
+					std::vector< std::vector<size_t> >& vIndex);
+
+template <typename TDomain>
+void InitLaplacian_PartialIntegration(	
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					std::vector< std::vector<  number > >& vStencil,
 					std::vector< std::vector<size_t> >& vIndex,
 					int quadRuleType, bool fillElemSizeIntoVector = false);
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Damage updater
@@ -85,58 +111,36 @@ class DamageFunctionUpdater
 		typedef typename grid_dim_traits<dim>::side_type TSide; 
 		typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
 		typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
-
 		typedef typename TDomain::position_accessor_type TPositionAccessor;
 
-		DamageFunctionUpdater() : m_quadRuleType(2), m_discType(_PARTIAL_INTEGRATION_) {}
-
 	/////////////////////////////////////////////////
-	// Taylor Expansion
-	/////////////////////////////////////////////////
-	private:
-		// DEPRECATED
-		// \{ 
-		//*
-		bool solve_TaylorExpansion(	
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
-					const number beta, const number r, 
-					const number eps, const int maxIter, const number dampNewton);
-
-
-		void CollectStencilNeighbors(std::vector<TElem*>& vElem,
-									 std::vector<DoFIndex>& vIndex,
-									 std::vector< MathVector<dim> >& vDistance,
-									 TElem* elem,
-									 TGrid& grid,
-									 TPositionAccessor& aaPos,
-									 SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-									 SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0);
-
-
-		void init_TaylorExpansion(	
-				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0);
-
-		number DLambda_TaylorExpansion(size_t i) {return m_vDLambda[i];}
-		number Lambda_TaylorExpansion(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF);
-
-		std::vector< DenseMatrix<VariableArray2<number> > > m_vB;
-		std::vector< number > m_vDLambda;
-		//*/
-		// \}
-
-	/////////////////////////////////////////////////
-	// Partial Integration
+	// Setup and Solve
 	/////////////////////////////////////////////////
 	public:
+		DamageFunctionUpdater() : m_discType(_PARTIAL_INTEGRATION_), m_quadRuleType(2) {}
+
+		void set_disc_type(const std::string& type);
+
 		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
-		bool solve_PartialIntegration(	
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+
+		bool solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
 					const number beta, const number r, 
 					const number eps, const int maxIter, const number dampNewton);
 
+		int last_num_iterations() const {return m_lastNumIters;}
+
+	protected:
+		enum DiscType {_LEAST_SQUARES_, _TAYLOR_EXPANSION_, _PARTIAL_INTEGRATION_};
+		int m_discType;
+		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
+		int m_lastNumIters;
+
+		RevisionCounter m_ApproxSpaceRevision;   // approximation space revision of cached values
+
+	/////////////////////////////////////////////////
+	// Implementation
+	/////////////////////////////////////////////////
 	protected:
 		number DLambda(size_t i) {return m_vStencil[i][0];}	
 		number Lambda(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF)
@@ -147,18 +151,23 @@ class DamageFunctionUpdater
 			return res;
 		}
 
-		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
 		std::vector< std::vector<  number > > m_vStencil;
 		std::vector< std::vector<size_t> > m_vIndex;
 
-	/////////////////////////////////////////////////
-	// Info
-	/////////////////////////////////////////////////
-	public:
-		int last_num_iterations() const {return m_lastNumIters;}
+		// DEPRECATED
+		// \{ 
+		bool solve_TaylorExpansion(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					const number beta, const number r, 
+					const number eps, const int maxIter, const number dampNewton);
+		// \}
 
-	protected:
-		int m_lastNumIters;
+		bool solve_PartialIntegration(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
+					const number beta, const number r, 
+					const number eps, const int maxIter, const number dampNewton);
 
 	/////////////////////////////////////////////////
 	// Debug
@@ -170,24 +179,6 @@ class DamageFunctionUpdater
 		SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > m_spDebugWriter;
 		void write_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call, int iter);
 		void write_stencil_matrix_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call);
-
-
-	/////////////////////////////////////////////////
-	// Disc type
-	/////////////////////////////////////////////////
-	public:
-		void set_disc_type(const std::string& type);
-		bool solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
-					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spPsi0,
-					const number beta, const number r, 
-					const number eps, const int maxIter, const number dampNewton);
-
-	protected:
-		enum DiscType {_LEAST_SQUARES_, _TAYLOR_EXPANSION_, _PARTIAL_INTEGRATION_};
-		int m_discType;
-
-		//	approximation space revision of cached values
-		RevisionCounter m_ApproxSpaceRevision;
 };
 
 
