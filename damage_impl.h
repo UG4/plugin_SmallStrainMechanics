@@ -289,14 +289,14 @@ void CollectSurfaceNeighbors(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// CollectStencilNeighbors_NeumannBND_IndexAndDistance
+// CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename TDomain>
-void CollectStencilNeighbors_NeumannBND_IndexAndDistance
+void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 (
 	std::vector< typename grid_dim_traits<TDomain::dim>::element_type* >& vElem,
-	std::vector<DoFIndex>& vIndex,
+	std::vector<size_t>& vIndex,
 	std::vector< MathVector<TDomain::dim> >& vDistance,
 	typename grid_dim_traits<TDomain::dim>::element_type* elem, 
 	typename TDomain::grid_type& grid,
@@ -365,40 +365,111 @@ void CollectStencilNeighbors_NeumannBND_IndexAndDistance
 			UG_THROW("Huh, why no element?");
 
 		////////////////////////////////////////////////////////////////////////////
-		// introduce mirror element if required
+		// handle sides with only one element
+		// ( if only one element for side, it must be a boundary element or contrained)
 		////////////////////////////////////////////////////////////////////////////
-		// if only element itself, it must be a boundary element
 		if(vElemOfSide.size() == 1){
-			vElem.push_back(vElemOfSide[0]);
 
-			// add index
-			std::vector<DoFIndex> ind;
-			if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-			vIndex.push_back(ind[0]);
+			////////////////////////////////////////////////////////////////////////////
+			// handle constraint edge
+			////////////////////////////////////////////////////////////////////////////
+			if(vSide[s]->is_constrained()){
 
+				TContrainedSide* cSide = dynamic_cast<TContrainedSide*>(vSide[s]);					
+				TSide* constrainingSide = dynamic_cast<TSide*>(cSide->get_constraining_object());
 
-			// add distance
-			vDistance.resize(vDistance.size()+1);
-			CollectCornerCoordinates(vCornerCoords, *vSide[s], aaPos);
+				typename TGrid::template traits<TElem>::secure_container vElemOfContrainingSide;
+				grid.associated_elements(vElemOfContrainingSide, constrainingSide);
+				if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be 2 at constraining side");
 
-			MathVector<dim> n;
-			ElementNormal<dim>(vSide[s]->reference_object_id(), n, &vCornerCoords[0]);
+				for(size_t nbr = 0; nbr < vElemOfContrainingSide.size(); ++nbr){
 
-			ProjectPointToPlane(vDistance.back(), ElemMidPoint, vCornerCoords[0], n);
-			VecScaleAdd(vDistance.back(), 2.0, ElemMidPoint, -2.0, vDistance.back());
+					TElem* neighborElem = vElemOfContrainingSide[nbr];
+					if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
 
-//					UG_LOG("is boundary, with vDistance: "  << vDistance.back() << "\n");
+					grid.mark(neighborElem);					
+
+					// add index
+					std::vector<DoFIndex> ind;
+					if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+					vIndex.push_back(ind[0][0]);
+
+					// add distance
+					vDistance.resize(vDistance.size()+1);
+					CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
+					AveragePositions<dim>(vDistance.back(), vCornerCoords);
+					VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
+				}
+
+			}
+
+			////////////////////////////////////////////////////////////////////////////
+			// handle mirror elements
+			// ( if only one element for side, it must be a boundary element)
+			////////////////////////////////////////////////////////////////////////////
+			else {
+				vElem.push_back(vElemOfSide[0]);
+
+				// add index
+				std::vector<DoFIndex> ind;
+				if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+				vIndex.push_back(ind[0][0]);
+
+				// add distance
+				MathVector<dim> n;
+				CollectCornerCoordinates(vCornerCoords, *vSide[s], aaPos);
+				ElementNormal<dim>(vSide[s]->reference_object_id(), n, &vCornerCoords[0]);
+
+				vDistance.resize(vDistance.size()+1);
+				ProjectPointToPlane(vDistance.back(), ElemMidPoint, vCornerCoords[0], n);
+				VecScaleAdd(vDistance.back(), 2.0, ElemMidPoint, -2.0, vDistance.back());
+//				UG_LOG("is boundary, with vDistance: "  << vDistance.back() << "\n");
+			}
 		}
 		////////////////////////////////////////////////////////////////////////////
-		// find all direct face neighbors
+		// handle hanging sides with 2 elements
+		// ( coupled to all fine neighbor elems )
 		////////////////////////////////////////////////////////////////////////////
-		// else: add other neighbor and mark
-		else{
-			for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
+		else if(vSide[s]->is_constraining()){
 
-				// if more than 2 elem found: internal error
-				if(vElemOfSide.size() != 2)
-					UG_THROW("Huh, why more than 2 elements of side?");
+			TContrainingSide* cSide = dynamic_cast<TContrainingSide*>(vSide[s]);
+			const size_t numConstrained = cSide->template num_constrained<TSide>();
+
+			for(size_t cs = 0; cs < numConstrained; ++cs){
+
+				TSide* constrainedSide = cSide->template constrained<TSide>(cs);
+
+				// neighbor elem
+				typename TGrid::template traits<TElem>::secure_container vElemOfContrainedSide;
+				grid.associated_elements(vElemOfContrainedSide, constrainedSide);
+				if(vElemOfContrainedSide.size() != 1) UG_THROW("Huh, should be 1 at constrained side");
+				TElem* neighborElem = vElemOfContrainedSide[0];
+				grid.mark(neighborElem);					
+
+				// add index
+				std::vector<DoFIndex> ind;
+				if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+				vIndex.push_back(ind[0][0]);
+
+				// add distance
+				vDistance.resize(vDistance.size()+1);
+				CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
+				AveragePositions<dim>(vDistance.back(), vCornerCoords);
+				VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
+			}
+
+
+		}
+		////////////////////////////////////////////////////////////////////////////
+		// regular refined sides
+		// (find all direct face neighbors)
+		////////////////////////////////////////////////////////////////////////////
+		else{
+			// if more than 2 elem found: internal error
+			if(vElemOfSide.size() != 2)
+				UG_THROW("Huh, why more than 2 elements of side?");
+
+			for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
 
 				// neighbor elem
 				TElem* neighborElem = vElemOfSide[eos];
@@ -413,82 +484,48 @@ void CollectStencilNeighbors_NeumannBND_IndexAndDistance
 				// add index
 				std::vector<DoFIndex> ind;
 				if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
-				vIndex.push_back(ind[0]);
+				vIndex.push_back(ind[0][0]);
 
 				// add distance
 				vDistance.resize(vDistance.size()+1);
 				CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
 				AveragePositions<dim>(vDistance.back(), vCornerCoords);
 				VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
-
-//						UG_LOG("has neighbor, c"  << vDistance.back() << "\n");
-
+//				UG_LOG("has neighbor, c"  << vDistance.back() << "\n");
 			}
 		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////
-	// add additional elements 
+	// add additional elements (via vertex coupling)
 	////////////////////////////////////////////////////////////////////////////
-	std::vector<TElem*> vOtherNeighbors;
-
-
-	int closest = -1;
-	number closestDist = std::numeric_limits<number>::max();
-	MathVector<dim> distance;
-
-//			UG_LOG("Search for vertices-elems: " << numVertex << "\n");
 	for(size_t vrt = 0; vrt < numVertex; ++vrt)
 	{
 		typename TGrid::template traits<TElem>::secure_container vVertexNeighbor;
 		grid.associated_elements(vVertexNeighbor, vVertex[vrt]);
 
-//				UG_LOG(" ++ At vertex "<< vrt << " we have #elems: " << vVertexNeighbor.size() << "\n");
 		for(size_t eov = 0; eov < vVertexNeighbor.size(); ++eov)
 		{
 			TElem* neighborElem = vVertexNeighbor[eov];
-			
-//					UG_LOG(" ++++ elem "<< eov << " is already marked?: " << grid.is_marked(neighborElem) << "\n");
 			if(grid.is_marked(neighborElem)) continue;
 			
 			grid.mark(neighborElem);
-			vOtherNeighbors.push_back(neighborElem);
+			vElem.push_back(neighborElem);
 
+			// add index
+			std::vector<DoFIndex> ind;
+			if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+			vIndex.push_back(ind[0][0]);
 
+			// add distance
+			vDistance.resize(vDistance.size()+1);
 			CollectCornerCoordinates(vCornerCoords, *neighborElem, aaPos);
-			AveragePositions<dim>(distance, vCornerCoords);
-			VecScaleAppend(distance, -1.0, ElemMidPoint);
-
-			number dist = VecTwoNorm(distance);
-//					UG_LOG(" ++++ ++ dist: " << dist << ", distance: "<< distance << ", ElemMidPoint: "<< ElemMidPoint << "\n")
-			if(dist < closestDist){
-				closest = vOtherNeighbors.size()-1;
-				closestDist = dist;
-			}
+			AveragePositions<dim>(vDistance.back(), vCornerCoords);
+			VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
 
 		}
 	}
 	if(dim == 3) UG_THROW("DamageFunctionUpdater: This is 2d only --- extend to 3d by searching for 3 additional neighbors");
-	if(closest < 0) UG_THROW("DamageFunctionUpdater: closest not detected.")
-
-	//UG_LOG("vOtherNeighbors.size(): " << vOtherNeighbors.size() << "\n");
-	//UG_LOG("closest: " << closest << "\n");
-	TElem* otherNeighbor = vOtherNeighbors[closest];
-	//UG_LOG("otherNeighbor: " << otherNeighbor << "\n");
-	vElem.push_back(otherNeighbor);
-
-	// add index
-	std::vector<DoFIndex> ind;
-	if(spF->inner_dof_indices(otherNeighbor, fct, ind) != 1) UG_THROW("Wrong number dofs");
-	vIndex.push_back(ind[0]);
-
-	// add distance
-	vDistance.resize(vDistance.size()+1);
-	CollectCornerCoordinates(vCornerCoords, *otherNeighbor, aaPos);
-	AveragePositions<dim>(vDistance.back(), vCornerCoords);
-	VecScaleAdd(vDistance.back(), 1.0, ElemMidPoint, -1.0, vDistance.back());
-
-//			UG_LOG("########  Extra Neighbot with vDistance:  " << vDistance.back() << "\n")
 
 	//	end marking
 	grid.end_marking();
@@ -723,11 +760,11 @@ void InitLaplacian_PartialIntegration(
 			// (find all direct face neighbors)
 			////////////////////////////////////////////////////////////////////////////
 			else{
-				for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
+				// if more than 2 elem found: internal error
+				if(vElemOfSide.size() != 2)
+					UG_THROW("Huh, why more than 2 elements of side?");
 
-					// if more than 2 elem found: internal error
-					if(vElemOfSide.size() != 2)
-						UG_THROW("Huh, why more than 2 elements of side?");
+				for(size_t eos = 0; eos < vElemOfSide.size(); ++eos){
 
 					// neighbor elem
 					TElem* neighborElem = vElemOfSide[eos];
@@ -954,7 +991,7 @@ void InitLaplacian_TaylorExpansion(
 
 	// storage (for reuse)
 	std::vector<TElem*> vElem;
-	std::vector<DoFIndex> vNbrIndex;
+	std::vector<size_t> vNbrIndex;
 	std::vector< MathVector<dim> > vDistance;
 
 
@@ -980,19 +1017,38 @@ void InitLaplacian_TaylorExpansion(
 		// Collect suitable neighbors for stencil creation
 		////////////////////////////////////////////////////////////////////////////
 
-		CollectStencilNeighbors_NeumannBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF);
+		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF);
 
-		const int numNeighbors = 2*dim + (dim * (dim-1)) / 2;
-		if(vNbrIndex.size() < numNeighbors || vDistance.size() < numNeighbors)
+		const int numNeighborsRequred = 2*dim + (dim * (dim-1)) / 2;
+		const int numSideNeighbors = std::pow(2,dim);
+		if(vNbrIndex.size() < numNeighborsRequred || vDistance.size() < numNeighborsRequred)
 			UG_THROW("Wrong number of neighbors detected: " << vNbrIndex.size());
+
+		// select additional neighbors beside the side connecting elems
+		if(dim == 3) UG_THROW("DamageFunctionUpdater: This is 2d only --- extend to 3d by looking for 3 additional neighbors");
+		if(numNeighborsRequred != numSideNeighbors+1) UG_THROW("DamageFunctionUpdater: Only 2d implemented")
+
+		// loop all "additional" neighbors (i.e. not those for sides on full refined meshes)
+		// to find the clostest to choose
+		int closest = -1; number closestDist = std::numeric_limits<number>::max();
+		for(int k = numSideNeighbors; k < (int)vDistance.size(); ++k)
+		{
+			number dist = VecTwoNorm(vDistance[k]);
+			if(dist < closestDist){closest = k; closestDist = dist;}
+		}
+		if(closest < 0) UG_THROW("DamageFunctionUpdater: closest not detected.")
+
+		vElem[numSideNeighbors] = vElem[closest];
+		vNbrIndex[numSideNeighbors] = vNbrIndex[closest];
+		vDistance[numSideNeighbors] = vDistance[closest];
 
 		////////////////////////////////////////////////////////////////////////////
 		// Create interpolation matrix and invert
 		////////////////////////////////////////////////////////////////////////////
 
-		BlockInv.resize(numNeighbors, numNeighbors);
+		BlockInv.resize(numNeighborsRequred, numNeighborsRequred);
 		BlockInv = 0.0;
-		for (size_t j = 0; j < numNeighbors; ++j)
+		for (size_t j = 0; j < numNeighborsRequred; ++j)
 		{
 			for (int d = 0; d < dim; ++d)
 				BlockInv(j,d) = vDistance[j][d];
@@ -1007,7 +1063,7 @@ void InitLaplacian_TaylorExpansion(
 			for (int d = 0; d < dim; ++d)
 				BlockInv(j,cnt++) = 0.5 * vDistance[j][d] * vDistance[j][d];
 
-			if(cnt != numNeighbors)
+			if(cnt != numNeighborsRequred)
 				UG_THROW("Wrong number of equations")
 		}
 
@@ -1020,11 +1076,11 @@ void InitLaplacian_TaylorExpansion(
 
 ///////////// BEBUG (begin) ///////////////
 /*
-		for (size_t i = 0; i < numNeighbors; ++i){
-			for (size_t j = 0; j < numNeighbors; ++j){
+		for (size_t i = 0; i < numNeighborsRequred; ++i){
+			for (size_t j = 0; j < numNeighborsRequred; ++j){
 
 				number res = 0.0;
-				for(size_t k = 0; k < numNeighbors; ++k)
+				for(size_t k = 0; k < numNeighborsRequred; ++k)
 					res += Block(i,k) * BlockInv(k,j);
 
 				if(i == j){
@@ -1065,22 +1121,22 @@ void InitLaplacian_TaylorExpansion(
 		const size_t i = ind[0][0];
 
 		vStencil[i].clear();
-		vStencil[i].resize(numNeighbors+1);
+		vStencil[i].resize(numNeighborsRequred+1);
 		vStencil[i][0] = 0.0;
 
-		for (size_t k = 0; k < numNeighbors; ++k){
+		for (size_t k = 0; k < numNeighborsRequred; ++k){
 			vStencil[i][k+1] = 0.0;
 			for (int d = 0; d < dim; ++d){
-					vStencil[i][k+1] += BlockInv( (numNeighbors-dim)+d,  k);
-					vStencil[i][0]   -= BlockInv( (numNeighbors-dim)+d,  k);
+					vStencil[i][k+1] += BlockInv( (numNeighborsRequred-dim)+d,  k);
+					vStencil[i][0]   -= BlockInv( (numNeighborsRequred-dim)+d,  k);
 			}
 		}
 		
 		vIndex[i].clear();
-		vIndex[i].resize(numNeighbors+1);
+		vIndex[i].resize(numNeighborsRequred+1);
 		vIndex[i][0] = i;
-		for (size_t k = 0; k < numNeighbors; ++k){
-			vIndex[i][k+1] = vNbrIndex[k][0];
+		for (size_t k = 0; k < numNeighborsRequred; ++k){
+			vIndex[i][k+1] = vNbrIndex[k];
 		}
 	}
 

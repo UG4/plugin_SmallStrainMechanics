@@ -72,10 +72,10 @@ void CollectSurfaceNeighbors(
 					std::vector< typename grid_dim_traits<TDomain::dim>::element_type* >& vNeighbors);
 
 template <typename TDomain>
-void CollectStencilNeighbors_NeumannBND_IndexAndDistance
+void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 (
 	std::vector< typename grid_dim_traits<TDomain::dim>::element_type* >& vElem,
-	std::vector<DoFIndex>& vIndex,
+	std::vector<size_t>& vIndex,
 	std::vector< MathVector<TDomain::dim> >& vDistance,
 	typename grid_dim_traits<TDomain::dim>::element_type* elem,
 	typename TDomain::grid_type& grid,
