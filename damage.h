@@ -90,6 +90,12 @@ void InitLaplacian_TaylorExpansion(
 					std::vector< std::vector<size_t> >& vIndex);
 
 template <typename TDomain>
+void InitLaplacian_LeastSquares(	
+					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+					std::vector< std::vector<  number > >& vStencil,
+					std::vector< std::vector<size_t> >& vIndex);
+
+template <typename TDomain>
 void InitLaplacian_PartialIntegration(	
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					std::vector< std::vector<  number > >& vStencil,
