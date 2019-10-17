@@ -386,6 +386,7 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 					if(grid.template num_children<TElem,TElem>(neighborElem) > 0) continue;
 
 					grid.mark(neighborElem);					
+					vElem.push_back(neighborElem);
 
 					// add index
 					std::vector<DoFIndex> ind;
@@ -443,6 +444,7 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 				if(vElemOfContrainedSide.size() != 1) UG_THROW("Huh, should be 1 at constrained side");
 				TElem* neighborElem = vElemOfContrainedSide[0];
 				grid.mark(neighborElem);					
+				vElem.push_back(neighborElem);
 
 				// add index
 				std::vector<DoFIndex> ind;
@@ -1286,7 +1288,8 @@ void InitLaplacian_LeastSquares(
 		const int numDerivs = 2*dim + (dim * (dim-1)) / 2; // or ( dim * (dim+3) ) / 2
 		const int numNeighbors = vElem.size();
 		if(vElem.size() < numDerivs || vNbrIndex.size() < numDerivs || vDistance.size() < numDerivs)
-			UG_THROW("Wrong number of neighbors detected: " << vNbrIndex.size());
+			UG_THROW("Wrong number of neighbors detected: #elems: " << vElem.size() <<
+						", #Index: " << vNbrIndex.size() << ", #Distance: " << vDistance.size());
 
 		////////////////////////////////////////////////////////////////////////////
 		// Create interpolation matrix and invert
