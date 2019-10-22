@@ -1414,6 +1414,7 @@ set_disc_type(const std::string& theType)
 	std::string type = TrimString(theType);
 	std::transform(type.begin(), type.end(), type.begin(), ::tolower);
 
+	UG_LOG ("DamageFunctionUpdater: setting laplacian type to '"<< theType <<"' \n");	
 	if(type == "least-squares") {m_discType = _LEAST_SQUARES_; return;}
 	if(type == "taylor-expansion") {m_discType = _TAYLOR_EXPANSION_; return;}
 	if(type == "partial-integration") {m_discType = _PARTIAL_INTEGRATION_; return;}
@@ -1445,6 +1446,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 	// check revision counter if grid / approx space has changed since last call
 	if(m_ApproxSpaceRevision != approxSpace->revision())
 	{
+		UG_LOG ("DamageFunctionUpdater: reinit laplacian using type '"<< m_discType <<"'\n");	
 		PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init, "Small Strain Mech");
 		// (re-)initialize setting
 		switch(m_discType){
