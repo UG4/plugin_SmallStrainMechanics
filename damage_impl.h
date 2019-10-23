@@ -1466,6 +1466,8 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 
 		//	remember revision counter of approx space
 		m_ApproxSpaceRevision = approxSpace->revision();
+
+		write_stencil_matrix_debug(spF, "STENCIL", call);
 	}
 
 
