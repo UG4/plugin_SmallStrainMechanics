@@ -137,7 +137,7 @@ class DamageFunctionUpdater
 		int last_num_iterations() const {return m_lastNumIters;}
 
 	protected:
-		enum DiscType {_LEAST_SQUARES_, _TAYLOR_EXPANSION_, _PARTIAL_INTEGRATION_};
+		enum DiscType {_LEAST_SQUARES_, _TAYLOR_EXPANSION_, _PARTIAL_INTEGRATION_, _TAYLOR_DIRECT_};
 		int m_discType;
 		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
 		int m_lastNumIters;

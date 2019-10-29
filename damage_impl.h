@@ -1397,6 +1397,169 @@ void InitLaplacian_LeastSquares(
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+// By Taylor for discrete laplacian
+////////////////////////////////////////////////////////////////////////////////
+
+
+template <typename TDomain>
+void InitLaplacian_TaylorDirect(	
+				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
+				std::vector< std::vector<  number > >& vStencil,
+				std::vector< std::vector<size_t> >& vIndex)
+{
+	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_TaylorDirect, "Small Strain Mech");
+
+	static const int dim = TDomain::dim;
+	typedef typename TDomain::grid_type TGrid;
+	typedef typename grid_dim_traits<dim>::element_type TElem; 
+	typedef typename grid_dim_traits<dim>::side_type TSide; 
+	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
+	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+
+	typedef typename TDomain::position_accessor_type TPositionAccessor;
+
+	const size_t fct = 0;
+
+	// get domain
+	SmartPtr<TDomain> domain = spF->domain();
+	SmartPtr<typename TDomain::grid_type> grid = domain->grid();
+	typename TDomain::position_accessor_type& aaPos = domain->position_accessor();
+
+	// get dof distribution
+	SmartPtr<DoFDistribution> dd = spF->dd();
+
+	//	get iterators
+	typename DoFDistribution::traits<TElem>::iterator iter, iterEnd;
+	iter = dd->begin<TElem>(SurfaceView::ALL); // SurfaceView::MG_ALL
+	iterEnd = dd->end<TElem>(SurfaceView::ALL);
+
+	// resize result vectors
+	const size_t numIndex = spF->num_dofs();
+	vStencil.resize(numIndex);
+	vIndex.resize(numIndex);
+
+
+	// storage (for reuse)
+	std::vector<TElem*> vElem;
+	std::vector<size_t> vNbrIndex;
+	std::vector< MathVector<dim> > vDistance;
+
+	DenseMatrix<VariableArray2<number> > X, XTX; 
+	std::vector<number> XTXr;
+
+	//	loop all vertices
+	for(;iter != iterEnd; ++iter)
+	{
+		//	get vertex
+		TElem* elem = *iter;
+
+		////////////////////////////////////////////////////////////////////////////
+		// Collect suitable neighbors for stencil creation
+		////////////////////////////////////////////////////////////////////////////
+
+		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF);
+
+		const int numDerivs = 2*dim + (dim * (dim-1)) / 2; // or ( dim * (dim+3) ) / 2
+		const int numNeighbors = vElem.size();
+		if(vElem.size() < numDerivs || vNbrIndex.size() < numDerivs || vDistance.size() < numDerivs)
+			UG_THROW("Wrong number of neighbors detected: #elems: " << vElem.size() <<
+						", #Index: " << vNbrIndex.size() << ", #Distance: " << vDistance.size());
+
+		////////////////////////////////////////////////////////////////////////////
+		// Create interpolation matrix and invert
+		////////////////////////////////////////////////////////////////////////////
+
+		// set X
+		X.resize(numNeighbors, numDerivs);
+//		Xa.resize(numNeighbors);
+		X = 0.0;
+		for (int j = 0; j < numNeighbors; ++j)
+		{
+			for (int d = 0; d < dim; ++d)
+				X(j,d) = vDistance[j][d];
+
+			int cnt = dim;
+			for (int d1 = 0; d1 < dim-1; ++d1)
+				for (int d2 = d1+1; d2 < dim; ++d2)
+				{
+					X(j,cnt++) = vDistance[j][d1] * vDistance[j][d2];
+				}
+
+//			Xa[j] = 0.0;
+			for (int d = 0; d < dim; ++d){
+				X(j,cnt++) = 0.5 * vDistance[j][d] * vDistance[j][d];
+//				Xa[j] += X(j,cnt);
+			}
+
+			if(cnt != numDerivs)
+				UG_THROW("Wrong number of equations")
+		}
+
+
+
+		// 
+		XTX.resize(numDerivs, numDerivs);
+		for(int i = 0; i < numDerivs; ++i){
+			for(int j = 0; j < i; ++j){
+				XTX(i,j) = 0;
+				for(int k = 0; k < numNeighbors; ++k){
+					XTX(i,j) += X(k,i) * X(k,j);
+				}
+				XTX(j,i) = XTX(i,j);
+			}
+			XTX(i,i) = 0;
+			for(int k = 0; k < numDerivs; ++k){
+				XTX(i,i) += X(k,i) * X(k,i);
+			}
+		}
+
+		// 
+		if(!Invert(XTX))
+			UG_THROW("Cannot invert block");
+
+
+		////////////////////////////////////////////////////////////////////////////
+		// extract second-order derivative subblock
+		////////////////////////////////////////////////////////////////////////////
+
+		// add index
+		std::vector<DoFIndex> ind;
+		if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+		const size_t i = ind[0][0];
+
+		vStencil[i].clear();
+		vStencil[i].resize(numNeighbors+1);
+		vStencil[i][0] = 0.0;
+
+		XTXr.resize(numNeighbors);
+		for (int j = 0; j < numNeighbors; ++j){
+
+			XTXr[j] = 0.0;
+			for (int d = 0; d < dim; ++d)
+				XTXr[j] += XTX(j,(numDerivs-dim)+d);
+		}
+
+
+		for (int k = 0; k < numNeighbors; ++k){
+			vStencil[i][k+1] = 0.0;
+			for (int j = 0; j < numNeighbors; ++j){
+				vStencil[i][k+1] += X(k,j) * XTXr[j];
+			}
+			vStencil[i][0]   -= vStencil[i][k+1];
+		}
+		
+		vIndex[i].clear();
+		vIndex[i].resize(numNeighbors+1);
+		vIndex[i][0] = i;
+		for (int k = 0; k < numNeighbors; ++k){
+			vIndex[i][k+1] = vNbrIndex[k];
+		}
+	}
+
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -1418,6 +1581,7 @@ set_disc_type(const std::string& theType)
 	if(type == "least-squares") {m_discType = _LEAST_SQUARES_; return;}
 	if(type == "taylor-expansion") {m_discType = _TAYLOR_EXPANSION_; return;}
 	if(type == "partial-integration") {m_discType = _PARTIAL_INTEGRATION_; return;}
+	if(type == "taylor-direct") {m_discType = _TAYLOR_DIRECT_; return;}
 
 	UG_THROW("DamageFunctionUpdater: unrecognized type '"<<type<<"'.");
 }
@@ -1458,6 +1622,9 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 				break;
 			case _LEAST_SQUARES_: 
 				InitLaplacian_LeastSquares(spF, m_vStencil, m_vIndex);
+				break;
+			case _TAYLOR_DIRECT_:
+				InitLaplacian_TaylorDirect(spF, m_vStencil, m_vIndex);
 				break;
 			default:
 				UG_THROW("DamageFunctionUpdater: internal error, "
