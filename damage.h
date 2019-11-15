@@ -123,7 +123,7 @@ class DamageFunctionUpdater
 	// Setup and Solve
 	/////////////////////////////////////////////////
 	public:
-		DamageFunctionUpdater() : m_discType(_PARTIAL_INTEGRATION_), m_quadRuleType(2) {}
+		DamageFunctionUpdater() : m_discType(_LEAST_SQUARES_), m_quadRuleType(2) {}
 
 		void set_disc_type(const std::string& type);
 
@@ -188,7 +188,7 @@ class RelativeDensityUpdater
 
 		typedef typename TDomain::position_accessor_type TPositionAccessor;
 
-		RelativeDensityUpdater() : m_discType(_PARTIAL_INTEGRATION_), m_quadRuleType(2) {}
+		RelativeDensityUpdater() : m_discType(_LEAST_SQUARES_), m_quadRuleType(2) {}
 
 	public:
 		std::vector<number> solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
