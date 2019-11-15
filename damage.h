@@ -80,20 +80,20 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 	typename grid_dim_traits<TDomain::dim>::element_type* elem,
 	typename TDomain::grid_type& grid,
 	typename TDomain::position_accessor_type& aaPos,
-	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF
+	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF, bool fillElemSizeIntoVector = false
 );
 
 template <typename TDomain>
 void InitLaplacian_TaylorExpansion(	
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					std::vector< std::vector<  number > >& vStencil,
-					std::vector< std::vector<size_t> >& vIndex);
+					std::vector< std::vector<size_t> >& vIndex, bool fillElemSizeIntoVector = false);
 
 template <typename TDomain>
 void InitLaplacian_LeastSquares(	
 					SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 					std::vector< std::vector<  number > >& vStencil,
-					std::vector< std::vector<size_t> >& vIndex);
+					std::vector< std::vector<size_t> >& vIndex, bool fillElemSizeIntoVector = false);
 
 template <typename TDomain>
 void InitLaplacian_PartialIntegration(	
@@ -188,7 +188,7 @@ class RelativeDensityUpdater
 
 		typedef typename TDomain::position_accessor_type TPositionAccessor;
 
-		RelativeDensityUpdater() : m_quadRuleType(2) {}
+		RelativeDensityUpdater() : m_discType(_PARTIAL_INTEGRATION_), m_quadRuleType(2) {}
 
 	public:
 		std::vector<number> solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
@@ -197,10 +197,19 @@ class RelativeDensityUpdater
 									const number chiMin, const number dt, const int p,
 									const number rho_target, const number MassTol);
 
+		void set_disc_type(const std::string& type);
+
 		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
 
-		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
+	protected:
+		enum DiscType {_LEAST_SQUARES_, _TAYLOR_EXPANSION_, _PARTIAL_INTEGRATION_, _TAYLOR_DIRECT_};
+		int m_discType;
+		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
+		RevisionCounter m_ApproxSpaceRevision;   // approximation space revision of cached values
 
+	/////////////////////////////////////////////////
+	// Implementation
+	/////////////////////////////////////////////////
 	protected:
 		number DLambda(size_t i) {return m_vStencil[i][0];}	
 		number Lambda(size_t i, SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF)
@@ -210,24 +219,22 @@ class RelativeDensityUpdater
 				res += m_vStencil[i][j] * (*spF)[ m_vIndex[i][j] ];
 			return res;
 		}
+		std::vector< std::vector<  number > > m_vStencil;
+		std::vector< std::vector<size_t> > m_vIndex;
+
+
+	protected:
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spElemSize;
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spLaplaceChi;
+		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spChiTrial;
+
+	public:	
+		void set_debug(SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > spDebugWriter);
 
 	protected:
 		SmartPtr<GridFunctionDebugWriter<TDomain, CPUAlgebra> > m_spDebugWriter;
 		void write_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call, int iter);
 		void write_stencil_matrix_debug(SmartPtr<GridFunction<TDomain, CPUAlgebra> > spGF, std::string name, int call);
-
-	protected:
-		//	approximation space revision of cached values
-		RevisionCounter m_ApproxSpaceRevision;
-
-		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
-		std::vector< std::vector<  number > > m_vStencil;
-		std::vector< std::vector<size_t> > m_vIndex;
-
-
-		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spElemSize;
-		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spLaplaceChi;
-		SmartPtr<GridFunction<TDomain, CPUAlgebra> > m_spChiTrial;
 };
 
 

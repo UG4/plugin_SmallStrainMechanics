@@ -301,7 +301,7 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 	typename grid_dim_traits<TDomain::dim>::element_type* elem, 
 	typename TDomain::grid_type& grid,
 	typename TDomain::position_accessor_type& aaPos,
-	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF
+	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF, bool fillElemSizeIntoVector 
 )
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_CollectStencilNeighbors, "Small Strain Mech");
@@ -338,6 +338,18 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 	AveragePositions<dim>(ElemMidPoint, vCornerCoords);
 
 //			UG_LOG("##############  Element with midpoint " << ElemMidPoint << "    ################   \n")
+
+	if(fillElemSizeIntoVector){
+
+		// add index
+		std::vector<DoFIndex> ind;
+		if(spF->inner_dof_indices(elem, fct, ind) != 1) UG_THROW("Wrong number dofs");
+		const size_t i = ind[0][0];
+
+		// element volume
+		(*spF)[i] = ElementSize<dim>(elem->reference_object_id(), &vCornerCoords[0]);
+	}
+
 
 	// get all sides in order
 	typename TGrid::template traits<TSide>::secure_container vSide;
@@ -1024,7 +1036,7 @@ template <typename TDomain>
 void InitLaplacian_TaylorExpansion(	
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 				std::vector< std::vector<  number > >& vStencil,
-				std::vector< std::vector<size_t> >& vIndex)
+				std::vector< std::vector<size_t> >& vIndex, bool fillElemSizeIntoVector)
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_TaylorExpansion, "Small Strain Mech");
 
@@ -1086,7 +1098,7 @@ void InitLaplacian_TaylorExpansion(
 		// Collect suitable neighbors for stencil creation
 		////////////////////////////////////////////////////////////////////////////
 
-		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF);
+		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF, fillElemSizeIntoVector);
 
 		const int numNeighborsRequired = 2*dim + (dim * (dim-1)) / 2;
 		const int numSideNeighbors = std::pow(2,dim);
@@ -1231,7 +1243,7 @@ template <typename TDomain>
 void InitLaplacian_LeastSquares(	
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 				std::vector< std::vector<  number > >& vStencil,
-				std::vector< std::vector<size_t> >& vIndex)
+				std::vector< std::vector<size_t> >& vIndex, bool fillElemSizeIntoVector)
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_LeastSquares, "Small Strain Mech");
 
@@ -1283,7 +1295,7 @@ void InitLaplacian_LeastSquares(
 		// Collect suitable neighbors for stencil creation
 		////////////////////////////////////////////////////////////////////////////
 
-		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF);
+		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF, fillElemSizeIntoVector);
 
 		const int numDerivs = 2*dim + (dim * (dim-1)) / 2; // or ( dim * (dim+3) ) / 2
 		const int numNeighbors = vElem.size();
@@ -1406,7 +1418,7 @@ template <typename TDomain>
 void InitLaplacian_TaylorDirect(	
 				SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 				std::vector< std::vector<  number > >& vStencil,
-				std::vector< std::vector<size_t> >& vIndex)
+				std::vector< std::vector<size_t> >& vIndex, bool fillElemSizeIntoVector = false)
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_TaylorDirect, "Small Strain Mech");
 
@@ -1458,7 +1470,7 @@ void InitLaplacian_TaylorDirect(
 		// Collect suitable neighbors for stencil creation
 		////////////////////////////////////////////////////////////////////////////
 
-		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF);
+		CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance(vElem, vNbrIndex, vDistance, elem, *grid, aaPos, spF, fillElemSizeIntoVector);
 
 		const int numDerivs = 2*dim + (dim * (dim-1)) / 2; // or ( dim * (dim+3) ) / 2
 		const int numNeighbors = vElem.size();
@@ -1472,7 +1484,6 @@ void InitLaplacian_TaylorDirect(
 
 		// set X
 		X.resize(numNeighbors, numDerivs);
-//		Xa.resize(numNeighbors);
 		X = 0.0;
 		for (int j = 0; j < numNeighbors; ++j)
 		{
@@ -1486,19 +1497,14 @@ void InitLaplacian_TaylorDirect(
 					X(j,cnt++) = vDistance[j][d1] * vDistance[j][d2];
 				}
 
-//			Xa[j] = 0.0;
-			for (int d = 0; d < dim; ++d){
+			for (int d = 0; d < dim; ++d)
 				X(j,cnt++) = 0.5 * vDistance[j][d] * vDistance[j][d];
-//				Xa[j] += X(j,cnt);
-			}
 
 			if(cnt != numDerivs)
 				UG_THROW("Wrong number of equations")
 		}
 
-
-
-		// 
+		// X^T X
 		XTX.resize(numDerivs, numDerivs);
 		for(int i = 0; i < numDerivs; ++i){
 			for(int j = 0; j < i; ++j){
@@ -1509,15 +1515,14 @@ void InitLaplacian_TaylorDirect(
 				XTX(j,i) = XTX(i,j);
 			}
 			XTX(i,i) = 0;
-			for(int k = 0; k < numDerivs; ++k){
+			for(int k = 0; k < numNeighbors; ++k){
 				XTX(i,i) += X(k,i) * X(k,i);
 			}
 		}
 
-		// 
+		// (X^T X)^{-1}
 		if(!Invert(XTX))
 			UG_THROW("Cannot invert block");
-
 
 		////////////////////////////////////////////////////////////////////////////
 		// extract second-order derivative subblock
@@ -1532,6 +1537,7 @@ void InitLaplacian_TaylorDirect(
 		vStencil[i].resize(numNeighbors+1);
 		vStencil[i][0] = 0.0;
 
+		// XTXr = (X^T X)^{-1} * s
 		XTXr.resize(numNeighbors);
 		for (int j = 0; j < numNeighbors; ++j){
 
@@ -1540,7 +1546,7 @@ void InitLaplacian_TaylorDirect(
 				XTXr[j] += XTX(j,(numDerivs-dim)+d);
 		}
 
-
+		// X * (X^T X)^{-1} * s
 		for (int k = 0; k < numNeighbors; ++k){
 			vStencil[i][k+1] = 0.0;
 			for (int j = 0; j < numNeighbors; ++j){
@@ -1548,7 +1554,7 @@ void InitLaplacian_TaylorDirect(
 			}
 			vStencil[i][0]   -= vStencil[i][k+1];
 		}
-		
+	
 		vIndex[i].clear();
 		vIndex[i].resize(numNeighbors+1);
 		vIndex[i][0] = i;
@@ -1830,6 +1836,22 @@ write_stencil_matrix_debug(
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+template <typename TDomain>
+void RelativeDensityUpdater<TDomain>::
+set_disc_type(const std::string& theType)
+{
+	std::string type = TrimString(theType);
+	std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+	UG_LOG ("DamageFunctionUpdater: setting laplacian type to '"<< theType <<"' \n");	
+	if(type == "least-squares") {m_discType = _LEAST_SQUARES_; return;}
+	if(type == "taylor-expansion") {m_discType = _TAYLOR_EXPANSION_; return;}
+	if(type == "partial-integration") {m_discType = _PARTIAL_INTEGRATION_; return;}
+	if(type == "taylor-direct") {m_discType = _TAYLOR_DIRECT_; return;}
+
+	UG_THROW("DamageFunctionUpdater: unrecognized type '"<<type<<"'.");
+}
+
 
 
 template <typename TDomain>
@@ -1861,8 +1883,27 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 		m_spLaplaceChi = spChi->clone();
 		m_spChiTrial = spChi->clone();
 
+
+		UG_LOG ("RelativeDensityUpdater: reinit laplacian using type '"<< m_discType <<"'\n");	
+		PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init, "Small Strain Mech");
 		// (re-)initialize setting
-		InitLaplacian_PartialIntegration(m_spElemSize, m_vStencil, m_vIndex, m_quadRuleType, true);
+		switch(m_discType){
+			case _PARTIAL_INTEGRATION_: 
+				InitLaplacian_PartialIntegration(m_spElemSize, m_vStencil, m_vIndex, m_quadRuleType, true);
+				break;
+			case _TAYLOR_EXPANSION_: 
+				InitLaplacian_TaylorExpansion(m_spElemSize, m_vStencil, m_vIndex, true);
+				break;
+			case _LEAST_SQUARES_: 
+				InitLaplacian_LeastSquares(m_spElemSize, m_vStencil, m_vIndex, true);
+				break;
+			case _TAYLOR_DIRECT_:
+				InitLaplacian_TaylorDirect(m_spElemSize, m_vStencil, m_vIndex, true);
+				break;
+			default:
+				UG_THROW("RelativeDensityUpdater: internal error, "
+							"unrecognized type number '"<<m_discType<<"'.");
+		}
 
 		//	remember revision counter of approx space
 		m_ApproxSpaceRevision = approxSpace->revision();

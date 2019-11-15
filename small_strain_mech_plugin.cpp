@@ -266,6 +266,7 @@ static void Domain(Registry& reg, string grp)
 		string name = string("RelativeDensityUpdater").append(suffix);
 		reg.add_class_<T>(name, grp)
 			.add_constructor()
+			.add_method("set_disc_type", &T::set_disc_type, "", "")
 			.add_method("solve", &T::solve, "", "")
 			.add_method("set_debug", &T::set_debug, "", "")
 			.add_method("set_quad_rule", &T::set_quad_rule, "", "")
