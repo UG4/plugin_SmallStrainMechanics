@@ -132,7 +132,7 @@ void CollectSurfaceNeighbors(
 
 				typename TGrid::template traits<TElem>::secure_container vElemOfContrainingSide;
 				grid.associated_elements(vElemOfContrainingSide, constrainingSide);
-				if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be 2 at constraining side");
+				if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be "<<2<<" at constraining side");
 
 				for(size_t nbr = 0; nbr < vElemOfContrainingSide.size(); ++nbr){
 
@@ -390,7 +390,7 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 
 				typename TGrid::template traits<TElem>::secure_container vElemOfContrainingSide;
 				grid.associated_elements(vElemOfContrainingSide, constrainingSide);
-				if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be 2 at constraining side");
+				if(vElemOfContrainingSide.size() != 2) UG_THROW("Huh, should be "<<2<<" at constraining side");
 
 				for(size_t nbr = 0; nbr < vElemOfContrainingSide.size(); ++nbr){
 
@@ -606,7 +606,6 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 
 
 	}
-	if(dim == 3) UG_THROW("DamageFunctionUpdater: This is 2d only --- extend to 3d by searching for 3 additional neighbors");
 
 	//	end marking
 	grid.end_marking();
@@ -635,6 +634,9 @@ void InitLaplacian_PartialIntegration(
 	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
 
 	typedef typename TDomain::position_accessor_type TPositionAccessor;
+
+	if(dim == 3)
+		UG_THROW("This implementation is 2d only, currently. Handle vertex neighbors properly in 3d...");
 
 	const size_t fct = 0;
 
@@ -987,9 +989,6 @@ void InitLaplacian_PartialIntegration(
 
 
 						//UG_LOG("Elem: "<<i<<", side: "<<s<<", vrt: "<<vrt<<", Distance: "<<Distance<<", Normal: "<<Normal<<"\n");
-
-						if(dim == 3)
-							UG_THROW("This implementation is 2d only, currently. Handle vertex neighbors properly in 3d...");
 
 						std::vector<DoFIndex> ind;
 						if(spF->inner_dof_indices(neighborElem, fct, ind) != 1) UG_THROW("Wrong number dofs");
@@ -1917,11 +1916,11 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 	// loop until maxiter
 	////////////////////////////////////////////////////////////////////////////
 
-	// TODO: better handling of h^2 in 3d
-	number h2 = 0.0;
+	// find smallest h^2 
+	number h2 = std::numeric_limits<number>::max();
 	for(size_t i = 0; i < m_vIndex.size(); ++i){
 		const number vol = (*m_spElemSize)[i];
-		h2 = std::max(h2, vol);
+		h2 = std::min(h2, std::pow(vol, 2.0/dim));
 	}
 
 	const int n = std::floor(6*betaStar / (etaChiStar * h2)) + 1;
