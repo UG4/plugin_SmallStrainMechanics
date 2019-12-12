@@ -1920,7 +1920,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 	number h2 = std::numeric_limits<number>::max();
 	for(size_t i = 0; i < m_vIndex.size(); ++i){
 		const number vol = (*m_spElemSize)[i];
-		h2 = std::min(h2, std::pow(vol, 2.0/dim));
+		h2 = std::min(h2, sqrt(dim) * std::pow(vol, 2.0/dim));
 	}
 
 	const int n = std::floor(6*betaStar / (etaChiStar * h2)) + 1;
@@ -1958,7 +1958,7 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 
 		const number p_w = int_g_p / int_g;
 
-		const number beta = betaStar * p_w;
+		number beta = betaStar * p_w;
 		const number eta_chi = etaChiStar * p_w;
 
 
@@ -2007,6 +2007,10 @@ solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
 				const number p_chi = (*spDrivingForce)[i];
 				const number laplaceChi = (*m_spLaplaceChi)[i];
 				const number vol = (*m_spElemSize)[i];
+
+				if(m_bEnforceLocalRequiredBeta){
+					beta = std::max(2 * sqrt(dim) * std::pow(vol, 2.0/dim) * p_w, betaStar * p_w);
+				}
 
 				number& chi_tr = (*m_spChiTrial)[i];
 

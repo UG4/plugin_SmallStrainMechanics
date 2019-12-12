@@ -270,6 +270,7 @@ static void Domain(Registry& reg, string grp)
 			.add_method("solve", &T::solve, "", "")
 			.add_method("set_debug", &T::set_debug, "", "")
 			.add_method("set_quad_rule", &T::set_quad_rule, "", "")
+			.add_method("set_enforce_local_required_beta", &T::set_enforce_local_required_beta, "", "")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "RelativeDensityUpdater", tag);
 	}

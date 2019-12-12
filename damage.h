@@ -188,7 +188,7 @@ class RelativeDensityUpdater
 
 		typedef typename TDomain::position_accessor_type TPositionAccessor;
 
-		RelativeDensityUpdater() : m_discType(_LEAST_SQUARES_), m_quadRuleType(2) {}
+		RelativeDensityUpdater() : m_discType(_LEAST_SQUARES_), m_quadRuleType(2), m_bEnforceLocalRequiredBeta(false) {}
 
 	public:
 		std::vector<number> solve(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spChi,
@@ -198,6 +198,7 @@ class RelativeDensityUpdater
 									const number rho_target, const number MassTol);
 
 		void set_disc_type(const std::string& type);
+		void set_enforce_local_required_beta(bool bEnforce) {m_bEnforceLocalRequiredBeta = bEnforce;}
 
 		void set_quad_rule(int quadRuleType) {m_quadRuleType = quadRuleType;}
 
@@ -205,6 +206,7 @@ class RelativeDensityUpdater
 		enum DiscType {_LEAST_SQUARES_, _TAYLOR_EXPANSION_, _PARTIAL_INTEGRATION_, _TAYLOR_DIRECT_};
 		int m_discType;
 		int m_quadRuleType; // 1 = Midpoint, 2 = Simpson
+		bool m_bEnforceLocalRequiredBeta;
 		RevisionCounter m_ApproxSpaceRevision;   // approximation space revision of cached values
 
 	/////////////////////////////////////////////////
