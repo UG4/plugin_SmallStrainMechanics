@@ -2163,8 +2163,8 @@ void MarkForAdaption_ValueRangeIndicator(
 					number lowerValueToCoarsen, 
 					number minValueToRefine, number maxValueToRefine,
 					number upperValueToCoarsen,
-					number maxJumpDiffToCoarsen,
-					number minJumpDiffToRefine,
+					number maxJumpDifferenceToNeighborsForCoarsen,
+					number minJumpDifferenceToNeighborsForRefine,
 					int maxLevel)
 {
 	PROFILE_FUNC_GROUP("Small Strain Mech");
@@ -2217,6 +2217,7 @@ void MarkForAdaption_ValueRangeIndicator(
 
 	//	check whether all children of e of type TElem have similar values
 		bool neighborsHaveLargeJump = false;
+		bool neighborsHaveSmallJump = true;
 		for(size_t i = 0; i < vNeighbors.size(); ++i){
 
 			TElem* neighbor = vNeighbors[i];
@@ -2225,11 +2226,16 @@ void MarkForAdaption_ValueRangeIndicator(
 			if(spChi->inner_dof_indices(neighbor, fct, ind) != 1) UG_THROW("Wrong number dofs");
 			const number valNeighbor = DoFRef(*spChi, ind[0]);
 
-			if(fabs(val - valNeighbor) > minJumpDiffToRefine)
+			if(fabs(val - valNeighbor) > minJumpDifferenceToNeighborsForRefine)
 			{
 				neighborsHaveLargeJump = true;
-				break;
 			}
+
+			if(fabs(val - valNeighbor) > maxJumpDifferenceToNeighborsForCoarsen)
+			{
+				neighborsHaveSmallJump = false;
+			}
+
 		}
 
 		//	marks for refinement
@@ -2247,42 +2253,17 @@ void MarkForAdaption_ValueRangeIndicator(
 		}
 
 		//	marks for coarsening
-		if( val < lowerValueToCoarsen || val > upperValueToCoarsen)
+		if( (val < lowerValueToCoarsen || val > upperValueToCoarsen)  
+			 && neighborsHaveSmallJump )
 		{
 
 		//	get the parent
 			TElem* parent = dynamic_cast<TElem*>(spChi->dd()->multi_grid()->get_parent(elem));
 			if(parent){
 
-			//	check whether all children of e of type TElem have similar values
-				bool allChildHaveSimilarValue = true;
-				size_t numChildren = spChi->dd()->multi_grid()->template num_children<TElem>(parent);
-				for(size_t i = 0; i < numChildren; ++i){
-
-					TElem* child = spChi->dd()->multi_grid()->template get_child<TElem>(parent, i);
-
-					// check if covered: cannot coarsen covered children (i.e. with children themselves)
-					if(spChi->dd()->multi_grid()->template num_children<TElem>(child) > 0){
-						allChildHaveSimilarValue = false;
-						break;						
-					}
-
-					// check if values are the same for all (leaf-)children
-					std::vector<DoFIndex> ind;
-					if(spChi->inner_dof_indices(child, fct, ind) != 1) UG_THROW("Wrong number dofs");
-					const number valChild = DoFRef(*spChi, ind[0]);
-					if(fabs(val - valChild) > maxJumpDiffToCoarsen)
-					{
-						allChildHaveSimilarValue = false;
-						break;
-					}
-				}
-			
-
-				if(allChildHaveSimilarValue){					
 					refiner.mark(elem, RM_COARSEN);
 					numMarkedCoarse++;
-				}
+
 			}
 
 		}
