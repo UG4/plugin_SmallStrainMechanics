@@ -52,6 +52,8 @@
 
 #include "damage.h"
 
+#include "anisotropy/aniso_ref.h"
+
 using namespace std;
 using namespace ug::bridge;
 
@@ -314,6 +316,8 @@ static void Domain(Registry& reg, string grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MechOutputWriter", tag);
    }
+
+    reg.add_function("MarkAnisotropic_Longest_Scaled_Normal", &MarkAnisotropic_Longest_Scaled_Normal<TDomain>, grp, "", "");
 
 }
 

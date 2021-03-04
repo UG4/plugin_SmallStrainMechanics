@@ -37,6 +37,8 @@
 
 #include "hooke.h"
 
+#include "voigtian_notation.h"
+
 #define PROFILE_HOOKE
 #ifdef PROFILE_HOOKE
 	#define HOOKE_PROFILE_FUNC()		PROFILE_FUNC_GROUP("Hooke")
@@ -245,51 +247,28 @@ const number v12, const number v13, const number v23
 
 	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
 
-	//  setze alle wWerte auf 0
-	for (size_t i = 0; i < (size_t) dim; ++i)
-		for (size_t j = 0; j < (size_t) dim; ++j)
-			for (size_t k = 0; k < (size_t) dim; ++k)
-				for (size_t l = 0; l < (size_t) dim; ++l)
-					elastTensorFunct[i][j][k][l] = 0.0;
-
-
+	VoigtianMatrix<TDomain> voigt;
 	const number v21 = (E2/E1) * v12;
 	const number v31 = (E3/E1) * v13;
 	const number v32 = (E3/E2) * v23;
 
 	const number D = 1 - v12*v21 - v13*v31 - v23*v32 - 2*v12*v23*v31;
 
+	const number C11 = E1*(1-v23*v32)/D;
+	const number C22 = E2*(1-v13*v31)/D;
+	const number C33 = E3*(1-v12*v21)/D;
 
-	// Tensor mit Werte fuellen
-	//                 i  j  k  l
-	elastTensorFunct[0][0][0][0] = E1*(1-v23*v32)/D; // C11
-	elastTensorFunct[1][1][1][1] = E2*(1-v13*v31)/D; // C22
-	elastTensorFunct[2][2][2][2] = E3*(1-v12*v21)/D; // C33
+	const number C12 = E2*(v13*v32+v12)/D;
+	const number C13 = E3*(v12*v23+v13)/D;
+	const number C23 = E3*(v21*v13+v23)/D;
 
-	elastTensorFunct[0][0][1][1] = 
-	elastTensorFunct[1][1][0][0] = E2*(v13*v32+v12)/D; // = C12
-
-	elastTensorFunct[0][0][2][2] = 
-	elastTensorFunct[2][2][0][0] = E3*(v12*v23+v13)/D; // = C13
-
-	elastTensorFunct[1][1][2][2] = 
-	elastTensorFunct[2][2][1][1] = E3*(v21*v13+v23)/D; // = C23
+	const number C44 = 2*G23;
+	const number C55 = 2*G13;
+	const number C66 = 2*G12;
 
 
-	elastTensorFunct[1][2][1][2] = 
-	elastTensorFunct[1][2][2][1] = 
-	elastTensorFunct[2][1][1][2] = 
-	elastTensorFunct[2][1][2][1] = 2*G23; // C44
-
-	elastTensorFunct[2][0][2][0] = 
-	elastTensorFunct[0][2][2][0] = 
-	elastTensorFunct[2][0][0][2] = 
-	elastTensorFunct[0][2][0][2] = 2*G13; // C55
-
-	elastTensorFunct[0][1][0][1] = 
-	elastTensorFunct[1][0][0][1] = 
-	elastTensorFunct[0][1][1][0] = 
-	elastTensorFunct[1][0][1][0] = 2*G12; // C66
+	voigt.set_orthotropic(C11, C12, C13, C22, C23, C33, C44, C55, C66);
+	voigt.copy_to_tensor(elastTensorFunct);
 
 	//	remembering the elasticity tensor
 	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
@@ -314,55 +293,16 @@ void
 HookeLaw<TDomain>::
 set_elasticity_tensor_orthotropic(
 const number C11, const number C12, const number C13,
-		const number C22, const number C23,
-					const number C33,
-							const number C44,
-									const number C55,
-											const number C66 )
+const number C22, const number C23, const number C33,
+const number C44, const number C55, const number C66)
 {
 	if(dim != 3) UG_THROW("Orthotrope Tensor only for 3 dimensions" );
 
 	MathTensor4<dim,dim,dim,dim> elastTensorFunct;
 
-	//  setze alle wWerte auf 0
-	for (size_t i = 0; i < (size_t) dim; ++i)
-		for (size_t j = 0; j < (size_t) dim; ++j)
-			for (size_t k = 0; k < (size_t) dim; ++k)
-				for (size_t l = 0; l < (size_t) dim; ++l)
-					elastTensorFunct[i][j][k][l] = 0.0;
-
-
-	// Tensor mit Werte fuellen
-	//                 i  j  k  l
-	elastTensorFunct[0][0][0][0] = C11;
-
-	elastTensorFunct[0][0][1][1] = C12;
-	elastTensorFunct[1][1][0][0] = C12; // = C21
-
-	elastTensorFunct[0][0][2][2] = C13;
-	elastTensorFunct[2][2][0][0] = C13; // = C31
-
-	elastTensorFunct[1][1][1][1] = C22;
-
-	elastTensorFunct[1][1][2][2] = C23;
-	elastTensorFunct[2][2][1][1] = C23; // = C32
-
-	elastTensorFunct[2][2][2][2] = C33;
-
-	elastTensorFunct[1][2][1][2] = C44;
-	elastTensorFunct[1][2][2][1] = C44;
-	elastTensorFunct[2][1][1][2] = C44;
-	elastTensorFunct[2][1][2][1] = C44;
-
-	elastTensorFunct[2][0][2][0] = C55;
-	elastTensorFunct[0][2][2][0] = C55;
-	elastTensorFunct[2][0][0][2] = C55;
-	elastTensorFunct[0][2][0][2] = C55;
-
-	elastTensorFunct[0][1][0][1] = C66;
-	elastTensorFunct[1][0][0][1] = C66;
-	elastTensorFunct[0][1][1][0] = C66;
-	elastTensorFunct[1][0][1][0] = C66;
+	VoigtianMatrix<TDomain> voigt;
+	voigt.set_orthotropic(C11, C12, C13, C22, C23, C33, C44, C55, C66);
+	voigt.copy_to_tensor(elastTensorFunct);
 
 	//	remembering the elasticity tensor
 	SmartPtr<MathTensor4<dim,dim,dim,dim> > spElastTens(new MathTensor4<dim,dim,dim,dim>(elastTensorFunct));
