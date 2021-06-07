@@ -49,8 +49,6 @@ namespace SmallStrainMechanics{
 template <class TDomain>
 number MaxEdgeLength(TDomain& dom, MathVector<TDomain::dim>& ndir)
 {
-	UG_ASSERT(dom.grid().get() == refiner.get_associated_grid(),
-			  "Grids in domain and in refiner have to match!");
 
 	UG_ASSERT(TDomain::dim == 3, "dimension must be 3!");
 
