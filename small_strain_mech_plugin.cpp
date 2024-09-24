@@ -317,8 +317,9 @@ static void Domain(Registry& reg, string grp)
 		reg.add_class_to_group(name, "MechOutputWriter", tag);
    }
 
+#ifdef UG_DIM_3
     reg.add_function("MarkAnisotropic_Longest_Scaled_Normal", &MarkAnisotropic_Longest_Scaled_Normal<TDomain>, grp, "", "");
-
+#endif
 }
 
 /**
