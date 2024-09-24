@@ -555,6 +555,23 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 		}
 	}
 
+
+	// scalar contribution, e.g, p * sum dx_i Phi_sh,i
+	if(m_imDivergence.data_given()) {
+
+		for(size_t sh = 0; sh < geo.num_sh(); ++sh)
+		{	// for all shape functions
+			for(size_t i = 0; i < num_fct(); ++i)
+			{ // for all components (i=1,2,3)
+				for(size_t ip = 0; ip < geo.num_ip(); ++ip)
+				{ 	// for all integration points
+					number ipGradI = geo.global_grad(ip, sh)[i];
+					d(i,sh) -= geo.weight(ip)*ipGradI*m_imDivergence[ip];
+				}
+			}
+		}
+	} // pressure data
+
 }
 
 //  assemble mass-defect
@@ -591,21 +608,6 @@ add_rhs_elem(LocalVector& d, GridObject* elem, const MathVector<dim> vCornerCoor
 		}
 	}
 
-	// b) scalar contribution, e.g, p * sum dx_i Phi_sh,i
-	if(m_imDivergence.data_given()) {
-
-		for(size_t sh = 0; sh < geo.num_sh(); ++sh)
-		{	// for all shape functions
-			for(size_t i = 0; i < num_fct(); ++i)
-			{ // for all components (i=1,2,3)
-				for(size_t ip = 0; ip < geo.num_ip(); ++ip)
-				{ 	// for all integration points
-					number ipGradI = geo.global_grad(ip, sh)[i];
-					d(i,sh) += geo.weight(ip)*ipGradI*m_imDivergence[ip];
-				}
-			}
-		}
-	} // pressure data
 
 
 
@@ -691,7 +693,7 @@ lin_def_pressure(const LocalVector& u,
 			//	loop integration points
 			for(size_t ip = 0; ip < geo.num_ip(); ++ip)
 			{
-				vvvLinDef[ip][i][sh] = geo.weight(ip)*geo.global_grad(ip, sh)[i];
+				vvvLinDef[ip][i][sh] = -geo.weight(ip)*geo.global_grad(ip, sh)[i];
 			}
 		}
 	}
@@ -885,7 +887,7 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 	this->register_import(m_imViscousForces[0]);
 	this->register_import(m_imViscousForces[1]);
 
-	m_imDivergence.set_rhs_part();
+	//m_imDivergence.set_rhs_part(); // Not sure about this...
 	m_imVolForce.set_rhs_part();
 	m_imViscousForces[0].set_rhs_part();
 	m_imViscousForces[1].set_rhs_part();
