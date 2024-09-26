@@ -887,7 +887,6 @@ SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 	this->register_import(m_imViscousForces[0]);
 	this->register_import(m_imViscousForces[1]);
 
-	//m_imDivergence.set_rhs_part(); // Not sure about this...
 	m_imVolForce.set_rhs_part();
 	m_imViscousForces[0].set_rhs_part();
 	m_imViscousForces[1].set_rhs_part();
