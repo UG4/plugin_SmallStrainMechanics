@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest] # ubuntu-latest, # macos-latest, macos-13, windows-latest
+        os: [ubuntu-latest, macos-latest] # ubuntu-latest, # macos-latest, macos-13, windows-latest
 
     steps:
       - name: Checkout self
@@ -25,10 +25,13 @@ jobs:
           mkdir ug4-git
           mkdir ug4-git/plugins
           mkdir ug4-git/plugins/SmallStrainMechanics
-          mv external ug4-git/plugins/SmallStrainMechanics
           mv CMakeLists.txt ug4-git/plugins/SmallStrainMechanics
-          mv *.cpp ug4-git/plugins/SmallStrainMechanics
-          mv *.h ug4-git/plugins/SmallStrainMechanics
+          mv *.c* ug4-git/plugins/SmallStrainMechanics
+          mv *.h* ug4-git/plugins/SmallStrainMechanics
+          mv anisotropy ug4-git/plugins/SmallStrainMechanics
+          mv contact ug4-git/plugins/SmallStrainMechanics
+          mv material_laws ug4-git/plugins/SmallStrainMechanics
+          mv output_writer ug4-git/plugins/SmallStrainMechanics
         continue-on-error: true
 
       - name: Checkout ughub
