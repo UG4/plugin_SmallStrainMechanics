@@ -1,0 +1,106 @@
+name: Build wheels
+
+# on: [push, pull_request]
+on: workflow_dispatch
+
+jobs:
+  ######################
+  # Job: Build wheel
+  ######################
+  build-wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest] # ubuntu-latest, # macos-latest, macos-13, windows-latest
+
+    steps:
+      - name: Checkout self
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Move sources to 'ug4-git/plugins/SuperLU6'.
+        run: |
+          mkdir ug4-git
+          mkdir ug4-git/plugins
+          mkdir ug4-git/plugins/SmallStrainMechanics
+          mv external ug4-git/plugins/SmallStrainMechanics
+          mv CMakeLists.txt ug4-git/plugins/SmallStrainMechanics
+          mv *.cpp ug4-git/plugins/SmallStrainMechanics
+          mv *.h ug4-git/plugins/SmallStrainMechanics
+        continue-on-error: true
+
+      - name: Checkout ughub
+        run: |
+          git clone https://github.com/UG4/ughub.git
+
+      - name: Install UG4 packages into 'ug4-git/*' 
+        run: |
+          # mkdir ug4-git
+          cd ug4-git
+          python3 ../ughub/ughub.py init
+          python3 ../ughub/ughub.py install ugcore PybindForUG4
+          python3 ../ughub/ughub.py git submodule init
+          python3 ../ughub/ughub.py git submodule update
+          
+      - name: Switch to Pybind feature branch(es), if any.
+        run: |
+          pwd
+          ls
+          cd ug4-git
+          python3 ../ughub/ughub.py git checkout feature-pybind11
+        continue-on-error: true
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.18.0
+        env:
+          CIBW_BUILD_VERBOSITY:  1
+          CIBW_BUILD: cp312-*
+          CIBW_SKIP: "*-win32 *-musllinux_* *linux_i686 *linux_s390x *linux_aarch64 *linux_s390x" 
+          CIBW_BEFORE_ALL_LINUX: > 
+            pwd && ls && 
+            export UG4_ROOT=$PWD/ug4-git
+          CIBW_BEFORE_ALL_MACOS: > 
+            pwd && ls && which python && env
+          CMAKE_ARGS: >-
+            ${{ contains(matrix.os, 'ubuntu') && '-DUG_ROOT_CMAKE_PATH=/project/ug4-git/ugcore/cmake' || 
+             contains(matrix.os, 'windows') && '-DUG_ROOT_CMAKE_PATH=C:/a/plugin_SmallStrainMechanics/plugin_SmallStrainMechanics/ug4-git/ugcore/cmake' || 
+             contains(matrix.os, 'macos') && '-DUG_ROOT_CMAKE_PATH=/Users/runner/work/plugin_SmallStrainMechanics/plugin_SmallStrainMechanics/ug4-git/ugcore/cmake' }}
+          
+        with:
+          package-dir: .
+          output-dir: wheelhouse
+          config-file: "{package}/pyproject.toml"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ug4py-plugins-superlu-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
+
+  ########################        
+  # Job: Publish to PyPI        
+  ########################  
+  pypi-publish:
+    name: Upload release to PyPI
+    # if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    needs:
+    - build-wheels
+    runs-on: ubuntu-latest
+    environment: release  # Specifying a GitHub environment is optional, but strongly encouraged
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+      # retrieve your distributions here
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ug4py-plugins-smallstrainmechanics-*
+          merge-multiple: true
+          path: dist/
+          
+      - run: ls -R dist
+          
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        

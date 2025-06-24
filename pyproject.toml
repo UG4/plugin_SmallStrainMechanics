@@ -1,0 +1,31 @@
+[build-system]
+requires = [
+    "scikit-build-core",
+    "cmake>=3.18",
+    "ninja",
+    "pybind11",
+    "ug4py-base>=0.1.5"
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "ug4py-plugins-smallstrainmechanics"
+version = "0.0.1"
+description = "This is UG4-plugin for SmallStrainMechanics."
+readme = {file = "README.md", content-type = "text/markdown"}
+
+
+
+[tool.scikit-build]
+#  cf. https://github.com/scikit-build/scikit-build-core
+
+# The versions of CMake to allow. If CMake is not present on the system or does
+# not pass this specifier, it will be downloaded via PyPI if possible. An empty
+# string will disable this check.
+cmake.version = ">=3.15"
+cmake.source-dir = "ug4-git/plugins/SmallStrainMechanics"  # ← final CMakeLists.txt will be in this subdir!
+
+# Setting DUG_ROOT_CMAKE_PATH is important!
+cmake.args=['-DBUILD_WITH_PIP=ON', '-DCMAKE_POSITION_INDEPENDENT_CODE=ON', '-DTARGET=libug4','-DPARALLEL:BOOL=OFF','-DUSE_PYBIND11:BOOL=ON', '-DSTATIC_BUILD:BOOL=ON','-DCPU=ALL', '-DCPU=1'] 
+
+logging.level = "DEBUG"
