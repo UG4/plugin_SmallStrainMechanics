@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, macos-13, windows-latest] # ubuntu-latest, # macos-latest, macos-13, windows-latest
+        os: [macos-latest, macos-13] # ubuntu-latest, # macos-latest, macos-13, windows-latest
 
     steps:
       - name: Checkout self
