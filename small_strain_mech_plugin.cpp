@@ -30,6 +30,8 @@
  * GNU Lesser General Public License for more details.
  */
 
+
+// ugcore headers.
 #include "bridge/util.h"
 #include "bridge/util_domain_algebra_dependent.h"
 
@@ -38,6 +40,8 @@
 #include "lib_grid/refinement/refiner_interface.h"
 #include "lib_disc/function_spaces/grid_function_util.h"
 
+// own headers.
+#include "small_strain_mech_plugin.h"
 #include "small_strain_mech.h"
 //#include "adaptive_util.h"
 #include "contact/contact.h"
@@ -56,6 +60,7 @@
 
 using namespace std;
 using namespace ug::bridge;
+
 
 namespace ug{
 namespace SmallStrainMechanics{
@@ -83,8 +88,8 @@ struct Functionality
  * @param reg				registry
  * @param parentGroup		group for sorting of functionality
  */
-template <typename TDomain, typename TAlgebra>
-static void DomainAlgebra(Registry& reg, string grp)
+template <typename TDomain, typename TAlgebra, typename TRegistry=ug::bridge::Registry>
+static void DomainAlgebra(TRegistry& reg, string grp)
 {
 	string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
 	string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
@@ -96,7 +101,7 @@ static void DomainAlgebra(Registry& reg, string grp)
 		typedef ContactSmallStrainMechanics<TDomain, function_type> T;
 		typedef ILagrangeMultiplierDisc<TDomain, function_type> TBase;
 		string name = string("ContactSmallStrainMechanics").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.template add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(SmartPtr<SmallStrainMechanicsElemDisc<TDomain> >)>("domain disc")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "ContactSmallStrainMechanics", tag);
@@ -127,8 +132,8 @@ static void DomainAlgebra(Registry& reg, string grp)
  * @param reg				registry
  * @param parentGroup		group for sorting of functionality
  */
-template <typename TDomain>
-static void Domain(Registry& reg, string grp)
+template <typename TDomain, typename TRegistry=ug::bridge::Registry>
+static void Domain(TRegistry& reg, string grp)
 {
 	static const int dim = TDomain::dim;
 	string suffix = GetDomainSuffix<TDomain>();
@@ -140,7 +145,7 @@ static void Domain(Registry& reg, string grp)
 		typedef SmallStrainMechanicsElemDisc<TDomain> T;
 		typedef IElemDisc<TDomain> TBase;
 		string name = string("SmallStrainMechanics").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.template add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(const char*,const char*)>("Function#Subsets")
 			.add_method("set_material_law", &T::set_material_law, "", "material law")
 			.add_method("get_material_law", &T::get_material_law, "", "material law")
@@ -177,7 +182,7 @@ static void Domain(Registry& reg, string grp)
 	{
 		typedef IMaterialLaw<TDomain> T;
 		string name = string("IMaterialLaw").append(suffix);
-		reg.add_class_<T>(name, grp)
+		reg.template add_class_<T>(name, grp)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "IMaterialLaw", tag);
 	}
@@ -187,7 +192,7 @@ static void Domain(Registry& reg, string grp)
 		typedef HookeLaw<TDomain> T;
 		typedef IMaterialLaw<TDomain> TBase;
 		string name = string("HookeLaw").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.template add_class_<T, TBase>(name, grp)
 			.add_constructor()
 			.add_method("set_elasticity_tensor_orthotropic", &T::set_elasticity_tensor_orthotropic,
 					"", "C11#C12#C13#C22#C23#C33#C44#C55#C66")
@@ -208,7 +213,7 @@ static void Domain(Registry& reg, string grp)
 		typedef SkinMaterialLaw<TDomain> T;
 		typedef IMaterialLaw<TDomain> TBase;
 		string name = string("SkinMaterialLaw").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.template add_class_<T, TBase>(name, grp)
 			.add_constructor()
 			.add_method("set_hooke_elasticity_tensor", &T::set_hooke_elasticity_tensor,"", "lambda#mu")
 			.add_method("set_hooke_elasticity_tensor_E_nu", &T::set_hooke_elasticity_tensor_E_nu,"", "E#nu")
@@ -224,7 +229,7 @@ static void Domain(Registry& reg, string grp)
 		typedef DamageLaw<TDomain> T;
 		typedef HookeLaw<TDomain> TBase;
 		string name = string("DamageLaw").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.template add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(SmartPtr<GridFunction<TDomain,CPUAlgebra> >, SmartPtr<GridFunction<TDomain,CPUAlgebra> >)>()
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "DamageLaw", tag);
@@ -235,7 +240,7 @@ static void Domain(Registry& reg, string grp)
 		typedef TopologyOptimLaw<TDomain> T;
 		typedef HookeLaw<TDomain> TBase;
 		string name = string("TopologyOptimLaw").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.template add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(SmartPtr<GridFunction<TDomain,CPUAlgebra> >, SmartPtr<GridFunction<TDomain,CPUAlgebra> >, int)>()
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "TopologyOptimLaw", tag);
@@ -244,7 +249,7 @@ static void Domain(Registry& reg, string grp)
 	{
 		typedef DamageFunctionUpdater<TDomain> T;
 		string name = string("DamageFunctionUpdater").append(suffix);
-		reg.add_class_<T>(name, grp)
+		reg.template add_class_<T>(name, grp)
 			.add_constructor()
 			.add_method("set_disc_type", &T::set_disc_type, "", "")
 			.add_method("solve", &T::solve, "", "")
@@ -266,7 +271,7 @@ static void Domain(Registry& reg, string grp)
 	{
 		typedef RelativeDensityUpdater<TDomain> T;
 		string name = string("RelativeDensityUpdater").append(suffix);
-		reg.add_class_<T>(name, grp)
+		reg.template add_class_<T>(name, grp)
 			.add_constructor()
 			.add_method("set_disc_type", &T::set_disc_type, "", "")
 			.add_method("solve", &T::solve, "", "")
@@ -282,7 +287,7 @@ static void Domain(Registry& reg, string grp)
 		typedef PrandtlReuss<TDomain> T;
 		typedef IMaterialLaw<TDomain> TBase;
 		string name = string("PrandtlReuss").append(suffix);
-		reg.add_class_<T, TBase>(name, grp)
+		reg.template add_class_<T, TBase>(name, grp)
 			.add_constructor()
 			.add_method("set_bulk_modulus", &T::set_bulk_modulus,
 					"", "bulkModulus")
@@ -308,7 +313,7 @@ static void Domain(Registry& reg, string grp)
    {
 		typedef MechOutputWriter<TDomain> T;
 		string name = string("MechOutputWriter").append(suffix);
-		reg.add_class_<T>(name, grp)
+		reg.template add_class_<T>(name, grp)
 			.add_constructor()
 			.add_method("stress_eigenvalues_at", &T::stress_eigenvalues_at)
 			.add_method("normal_stresses_at", &T::normal_stresses_at)
@@ -346,20 +351,44 @@ static void Dimension(Registry& reg, string grp)
 } // end namespace SmallStrainMechanics
 
 /**
- * This function is called when the plugin is loaded.
+ * The following functions are called when the plugin is loaded.
  */
-extern "C" void
-InitUGPlugin_SmallStrainMechanics(Registry* reg, string grp)
+
+// Auxiliary func.
+
+
+template <typename TRegistry=ug::bridge::Registry>
+void InitUGPlugin_SmallStrainMechanics_(TRegistry& reg, string grp)
+
 {
 	grp.append("/SpatialDisc/SmallStrainMechanics");
 	typedef SmallStrainMechanics::Functionality Functionality;
 
 	try{
-		//RegisterDimension2d3dDependent<Functionality>(*reg,grp);
-		RegisterDomain2d3dDependent<Functionality>(*reg,grp);
-		RegisterDomain2d3dAlgebraDependent<Functionality>(*reg,grp);
+#ifdef UG_USE_PYBIND11
+		RegisterDomain2d3dDependent<Functionality, TRegistry>(reg,grp);
+		RegisterDomain2d3dAlgebraDependent<Functionality, TRegistry>(reg,grp);
+#else
+		RegisterDomain2d3dDependent<Functionality>(reg,grp);
+		RegisterDomain2d3dAlgebraDependent<Functionality>(reg,grp);
+#endif
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
 }
+
+#ifndef UG_USE_PYBIND11
+// Expose to C.
+extern "C" void
+InitUGPlugin_SmallStrainMechanics(ug::bridge::Registry* reg, string grp)
+{InitUGPlugin_SmallStrainMechanics_<ug::bridge::Registry>(*reg, grp);}
+
+#else
+// Expose for pybind11.
+namespace SmallStrainMechanics{
+	void InitUGPlugin(ug::pybind::Registry* reg, string grp)
+	{ InitUGPlugin_SmallStrainMechanics_<ug::pybind::Registry>(*reg, grp); }
+}
+#endif
+
 
 }// namespace ug
