@@ -1,6 +1,6 @@
 # SmallStrainMechanics #
 
-[![Build wheels](https://github.com/UG4/plugin_SmallStrainMechanics/actions/workflows/wheels.yml/badge.svg)](https://github.com/UG4/plugin_SmallStrainMechanics/actions/workflows/wheels.yml))
+[![Build wheels](https://github.com/UG4/plugin_SmallStrainMechanics/actions/workflows/wheels.yml/badge.svg)](https://github.com/UG4/plugin_SmallStrainMechanics/actions/workflows/wheels.yml)
 [![PyPI version](https://img.shields.io/pypi/v/ug4py-plugins-smallstrainmechanics.svg)](https://pypi.org/project/ug4py-plugins-smallstrainmechanics/)
 
 
