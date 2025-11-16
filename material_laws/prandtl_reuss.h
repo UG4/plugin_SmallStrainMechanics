@@ -70,24 +70,24 @@ class PrandtlReuss
 {
 	private:
 	///	Base class type
-		typedef IMaterialLaw<TDomain> base_type;
+		using base_type = IMaterialLaw<TDomain>;
 
 	///	own type
-		typedef PrandtlReuss<TDomain> this_type;
+		using this_type = PrandtlReuss<TDomain>;
 
 	public:
 	///	World dimension
-		static const int dim = base_type::dim;
+		static constexpr int dim = base_type::dim;
 
 	///	base element type
-		typedef typename base_type::TBaseElem TBaseElem;
+		using TBaseElem = typename base_type::TBaseElem;
 
 	public:
 	///	constructor
 		PrandtlReuss();
 
 	///	Destructor
-		~PrandtlReuss(){};
+		~PrandtlReuss()= default;
 
 	///	set-methods for material constants
 		void set_bulk_modulus(const number bulkModulus)
@@ -234,10 +234,10 @@ class PrandtlReuss
 		ElemData* m_pElemData;
 
 	//	attachment type: attachment of ElemData
-		typedef Attachment<ElemData> AElemData;
+		using AElemData = Attachment<ElemData>;
 		AElemData m_aElemData;
 	//	the attachment accessor
-		typedef Grid::AttachmentAccessor<TBaseElem, AElemData>	ElemDataAccessor;
+		using ElemDataAccessor = Grid::AttachmentAccessor<TBaseElem, AElemData>;
 		ElemDataAccessor m_aaElemData;
 
 	/// hardening behavior

@@ -67,24 +67,24 @@ class ContactSmallStrainMechanics
 {
 	private:
 	///	Base class type
-		typedef ILagrangeMultiplierDisc<TDomain, TGridFunction> base_type;
+		using base_type = ILagrangeMultiplierDisc<TDomain, TGridFunction>;
 
 	///	own type
-		typedef ContactSmallStrainMechanics<TDomain, TGridFunction> this_type;
+		using this_type = ContactSmallStrainMechanics<TDomain, TGridFunction>;
 
 	public:
 	///	Domain type
-		typedef typename base_type::domain_type domain_type;
+		using domain_type = typename base_type::domain_type;
 
 	///	World dimension
-		static const int dim = base_type::dim;
+		static constexpr int dim = base_type::dim;
 
 	public:
 		ContactSmallStrainMechanics(
 				SmartPtr<SmallStrainMechanicsElemDisc<TDomain> > spLinElastPlast);
 
 	/// Virtual destructor
-		virtual ~ContactSmallStrainMechanics() {}
+		virtual ~ContactSmallStrainMechanics() = default;
 
 		virtual void lagrange_multiplier(TGridFunction& lagMult, const TGridFunction& u,
 				vector<DoFIndex> vActiveSet, vector<int> vActiveSubsets);

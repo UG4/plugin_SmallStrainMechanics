@@ -66,14 +66,14 @@ void CollectSurfaceNeighbors(
 {
 	PROFILE_BEGIN_GROUP(CollectSurfaceNeighbors, "Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename TDomain::grid_type TGrid;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename grid_dim_traits<dim>::side_type TSide; 
-	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+	static constexpr int dim = TDomain::dim;
+	using TGrid = typename TDomain::grid_type;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using TSide = typename grid_dim_traits<dim>::side_type;
+	using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+	using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
 
-	typedef typename TDomain::position_accessor_type TPositionAccessor;
+	using TPositionAccessor = typename TDomain::position_accessor_type;
 
 	// get domain
 	SmartPtr<TDomain> domain = spF->domain();
@@ -306,16 +306,16 @@ void CollectStencilNeighbors_NeumannZeroBND_IndexAndDistance
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_CollectStencilNeighbors, "Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename TDomain::grid_type TGrid;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename grid_dim_traits<dim>::side_type TSide; 
-	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
-	typedef typename TDomain::position_accessor_type TPositionAccessor;
+	static constexpr int dim = TDomain::dim;
+	using TGrid = typename TDomain::grid_type;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using TSide = typename grid_dim_traits<dim>::side_type;
+	using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+	using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
+	using TPositionAccessor = typename TDomain::position_accessor_type;
 
 
-	//static const int numNeighborsToFind = 2*dim + (dim * (dim-1)) / 2;
+	//static constexpr int numNeighborsToFind = 2*dim + (dim * (dim-1)) / 2;
 	const size_t fct = 0;
 
 	vElem.clear();
@@ -626,14 +626,13 @@ void InitLaplacian_PartialIntegration(
 {
 	PROFILE_BEGIN_GROUP(InitLaplacian_PartialIntegration, "Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename TDomain::grid_type TGrid;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename grid_dim_traits<dim>::side_type TSide; 
-	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
-
-	typedef typename TDomain::position_accessor_type TPositionAccessor;
+	static constexpr int dim = TDomain::dim;
+	using TGrid = typename TDomain::grid_type;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using TSide = typename grid_dim_traits<dim>::side_type;
+	using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+	using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
+	using TPositionAccessor = typename TDomain::position_accessor_type;
 
 	if(dim == 3)
 		UG_THROW("This implementation is 2d only, currently. Handle vertex neighbors properly in 3d...");
@@ -1039,14 +1038,14 @@ void InitLaplacian_TaylorExpansion(
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_TaylorExpansion, "Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename TDomain::grid_type TGrid;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename grid_dim_traits<dim>::side_type TSide; 
-	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+	static constexpr int dim = TDomain::dim;
+	using TGrid = typename TDomain::grid_type;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using TSide = typename grid_dim_traits<dim>::side_type;
+	using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+	using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
 
-	typedef typename TDomain::position_accessor_type TPositionAccessor;
+	using TPositionAccessor = typename TDomain::position_accessor_type;
 
 	const size_t fct = 0;
 
@@ -1246,14 +1245,14 @@ void InitLaplacian_LeastSquares(
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_LeastSquares, "Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename TDomain::grid_type TGrid;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename grid_dim_traits<dim>::side_type TSide; 
-	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+	static constexpr int dim = TDomain::dim;
+	using TGrid = typename TDomain::grid_type;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using TSide = typename grid_dim_traits<dim>::side_type;
+	using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+	using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
 
-	typedef typename TDomain::position_accessor_type TPositionAccessor;
+	using TPositionAccessor = typename TDomain::position_accessor_type;
 
 	const size_t fct = 0;
 
@@ -1421,14 +1420,14 @@ void InitLaplacian_TaylorDirect(
 {
 	PROFILE_BEGIN_GROUP(DamageFunctionUpdater_init_TaylorDirect, "Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename TDomain::grid_type TGrid;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename grid_dim_traits<dim>::side_type TSide; 
-	typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-	typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+	static constexpr int dim = TDomain::dim;
+	using TGrid = typename TDomain::grid_type;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using TSide = typename grid_dim_traits<dim>::side_type;
+	using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+	using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
 
-	typedef typename TDomain::position_accessor_type TPositionAccessor;
+	using TPositionAccessor = typename TDomain::position_accessor_type;
 
 	const size_t fct = 0;
 
@@ -1806,7 +1805,7 @@ write_stencil_matrix_debug(
 	//if (iter >= 0) ss << "_iter" << std::setfill('0') << std::setw(3) << iter;
 	ss << ".mat";
 
-	typedef CPUAlgebra::matrix_type TMat;			
+	using TMat = CPUAlgebra::matrix_type;
 
 	TMat A;
 	A.resize_and_clear(numDoFs,numDoFs);
@@ -2126,7 +2125,7 @@ write_stencil_matrix_debug(
 	//if (iter >= 0) ss << "_iter" << std::setfill('0') << std::setw(3) << iter;
 	ss << ".mat";
 
-	typedef CPUAlgebra::matrix_type TMat;			
+	using TMat = CPUAlgebra::matrix_type;
 
 	TMat A;
 	A.resize_and_clear(numDoFs,numDoFs);
@@ -2169,10 +2168,10 @@ void MarkForAdaption_ValueRangeIndicator(
 {
 	PROFILE_FUNC_GROUP("Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
-	typedef typename TDomain::position_accessor_type	position_accessor_type;
+	static constexpr int dim = TDomain::dim;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using const_iterator = typename DoFDistribution::traits<TElem>::const_iterator;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	//position_accessor_type& aaPos = spChi->domain()->position_accessor();
 
 	const int fct = 0; // \todo: generalize
@@ -2300,10 +2299,10 @@ void MarkDamage(	SmartPtr<GridFunction<TDomain, CPUAlgebra> > spF,
 {
 	PROFILE_FUNC_GROUP("Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
-	typedef typename TDomain::position_accessor_type	position_accessor_type;
+	static constexpr int dim = TDomain::dim;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using const_iterator = typename DoFDistribution::traits<TElem>::const_iterator;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	position_accessor_type& aaPos = spF->domain()->position_accessor();
 
 	const int fct = 0; // \todo: generalize
@@ -2416,9 +2415,9 @@ void MarkDamage_OLD_AND_DEPRECATED(	SmartPtr<GridFunction<TDomain, CPUAlgebra> >
 {
 	PROFILE_FUNC_GROUP("Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
+	static constexpr int dim = TDomain::dim;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using const_iterator = typename DoFDistribution::traits<TElem>::const_iterator;
 	const int fct = 0;
 
 	///////////////////////////
@@ -2521,9 +2520,9 @@ std::vector<number> DamageStatistic(	SmartPtr<GridFunction<TDomain, CPUAlgebra> 
 {
 	PROFILE_FUNC_GROUP("Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
+	static constexpr int dim = TDomain::dim;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using const_iterator = typename DoFDistribution::traits<TElem>::const_iterator;
 	const int fct = 0;
 
 	///////////////////////////
@@ -2619,9 +2618,9 @@ std::vector<number> MinMaxElementDiameter(SmartPtr<GridFunction<TDomain, CPUAlge
 {
 	PROFILE_FUNC_GROUP("Small Strain Mech");
 
-	static const int dim = TDomain::dim;
-	typedef typename grid_dim_traits<dim>::element_type TElem; 
-	typedef typename DoFDistribution::traits<TElem>::const_iterator const_iterator;
+	static constexpr int dim = TDomain::dim;
+	using TElem = typename grid_dim_traits<dim>::element_type;
+	using const_iterator = typename DoFDistribution::traits<TElem>::const_iterator;
 
 	typename TDomain::grid_type& grid = *(spF->domain()->grid());
 	typename TDomain::position_accessor_type& aaPos = spF->domain()->position_accessor();

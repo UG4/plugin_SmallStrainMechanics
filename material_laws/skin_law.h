@@ -79,11 +79,11 @@ class SkinMaterialLaw
 {
 	private:
 	///	Base class type
-		typedef IMaterialLaw<TDomain> base_type;
+		using base_type = IMaterialLaw<TDomain>;
 
 	public:
 	///	World dimension
-		static const int dim = TDomain::dim;
+		static constexpr int dim = TDomain::dim;
 
 	public:
 	///	constructor

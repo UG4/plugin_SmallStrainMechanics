@@ -54,30 +54,30 @@ class IScaledHookeLaw : public HookeLaw<TDomain>
 {
 	private:
 	///	Base class type
-		typedef HookeLaw<TDomain> base_type;
+		using base_type = HookeLaw<TDomain>;
 
 	///	own type
-		typedef IScaledHookeLaw<TDomain> this_type;
+		using this_type = IScaledHookeLaw<TDomain>;
 
 
 	public:
 	///	World dimension
-		static const int dim = base_type::dim;
+		static constexpr int dim = base_type::dim;
 
 	///	base element type
-		typedef typename base_type::TBaseElem TBaseElem;
+		using TBaseElem = typename base_type::TBaseElem;
 
 	public:
 	///	constructor
-		IScaledHookeLaw(	SmartPtr< GridFunction<TDomain, CPUAlgebra> > spScaling,
-							SmartPtr< GridFunction<TDomain, CPUAlgebra> > spEnergy)
+		IScaledHookeLaw(SmartPtr< GridFunction<TDomain, CPUAlgebra> > spScaling,
+						SmartPtr< GridFunction<TDomain, CPUAlgebra> > spEnergy)
 			: HookeLaw<TDomain>(), 
 			m_spScaling(spScaling), m_spEnergy(spEnergy), 
-			m_pScaling_elem(NULL), m_pEnergy_elem(NULL) 
+			m_pScaling_elem(nullptr), m_pEnergy_elem(nullptr)
 		{}
 
 	///	Destructor
-		~IScaledHookeLaw(){};
+		~IScaledHookeLaw() = default;
 
 	/// reset values explicitly
 		void init_internal_vars(TBaseElem* elem, const size_t numIP)
@@ -128,10 +128,10 @@ class DamageLaw
 {
 	private:
 	///	Base class type
-		typedef IScaledHookeLaw<TDomain> base_type;
+		using base_type = IScaledHookeLaw<TDomain>;
 
 	///	own type
-		typedef DamageLaw<TDomain> this_type;
+		using this_type = DamageLaw<TDomain>;
 
 	protected:
 		using base_type::m_pEnergy_elem;
@@ -139,10 +139,10 @@ class DamageLaw
 
 	public:
 	///	World dimension
-		static const int dim = base_type::dim;
+		static constexpr int dim = base_type::dim;
 
 	///	base element type
-		typedef typename base_type::TBaseElem TBaseElem;
+		using TBaseElem = typename base_type::TBaseElem;
 
 	public:
 	///	constructor
@@ -171,10 +171,10 @@ class TopologyOptimLaw
 {
 	private:
 	///	Base class type
-		typedef IScaledHookeLaw<TDomain> base_type;
+		using base_type = IScaledHookeLaw<TDomain>;
 
 	///	own type
-		typedef TopologyOptimLaw<TDomain> this_type;
+		using this_type = TopologyOptimLaw<TDomain>;
 
 	protected:
 		using base_type::m_pEnergy_elem;
@@ -182,10 +182,10 @@ class TopologyOptimLaw
 
 	public:
 	///	World dimension
-		static const int dim = base_type::dim;
+		static constexpr int dim = base_type::dim;
 
 	///	base element type
-		typedef typename base_type::TBaseElem TBaseElem;
+		using TBaseElem = typename base_type::TBaseElem;
 
 	public:
 	///	constructor
@@ -197,7 +197,7 @@ class TopologyOptimLaw
 		{}
 
 	///	Destructor
-		~TopologyOptimLaw() {};
+		~TopologyOptimLaw() = default;
 
 		virtual number scaling_on_curr_elem() {return std::pow(*m_pScaling_elem, m_expPenalize);}
 

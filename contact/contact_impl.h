@@ -44,30 +44,30 @@ namespace SmallStrainMechanics{
 
 template <int dim> struct face_type_traits
 {
-    typedef void face_type0;
-	typedef void face_type1;
-	typedef void DimFEGeo;
+	using face_type0 = void;
+	using face_type1 = void;
+	using DimFEGeo = void;
 };
 
 template <> struct face_type_traits<1>
 {
-    typedef ReferenceVertex face_type0;
-	typedef ReferenceVertex face_type1;
-	typedef DimFEGeometry<1, 1> DimFEGeo;
+	using face_type0 = ReferenceVertex;
+    using face_type1 = ReferenceVertex;
+	using DimFEGeo = DimFEGeometry<1, 1>;
 };
 
 template <> struct face_type_traits<2>
 {
-    typedef ReferenceEdge face_type0;
-	typedef ReferenceEdge face_type1;
-	typedef DimFEGeometry<2, 1> DimFEGeo;
+	using face_type0 = ReferenceEdge;
+	using face_type1 = ReferenceEdge;
+	using DimFEGeo = DimFEGeometry<2, 1>;
 };
 
 template <> struct face_type_traits<3>
 {
-    typedef ReferenceTriangle face_type0;
-	typedef ReferenceQuadrilateral face_type1;
-	typedef DimFEGeometry<3, 2> DimFEGeo;
+	using face_type0 = ReferenceTriangle;
+	using face_type1 = ReferenceQuadrilateral;
+	using DimFEGeo = DimFEGeometry<3, 2>;
 };
 
 template <typename TDomain>
@@ -77,9 +77,9 @@ void SmallStrainMechanicsElemDisc<TDomain>::contact_forces_elem_ips_avg(
 		TElem* elem, const MathVector<dim> sideCoPos[], int numElemCorners,
 		const LocalVector& locU, vector<DoFIndex> vActiveSetLoc)
 {
-	typedef typename face_type_traits<dim>::face_type0 face_type0;
-	typedef typename face_type_traits<dim>::face_type1 face_type1;
-	typedef typename face_type_traits<dim>::DimFEGeo sideGeo;
+	using face_type0 = typename face_type_traits<dim>::face_type0;
+	using face_type1 = typename face_type_traits<dim>::face_type1;
+	using sideGeo = typename face_type_traits<dim>::DimFEGeo;
 
 	ReferenceObjectID sideRoid = side->reference_object_id();
 	sideGeo geo(sideRoid, 3, LFEID(LFEID::LAGRANGE, dim, 1));
@@ -157,8 +157,8 @@ void SmallStrainMechanicsElemDisc<TDomain>::contact_forces_elem_midpoint(
 		const LocalVector& locU, vector<DoFIndex> vActiveSetLoc)
 {
 	//	TODO: inclusion of plastic variables, which are defined at the elements ip`s
-	typedef typename face_type_traits<dim>::face_type0 face_type0;
-	typedef typename face_type_traits<dim>::face_type1 face_type1;
+	using face_type0 = typename face_type_traits<dim>::face_type0;
+	using face_type1 = typename face_type_traits<dim>::face_type1;
 	SmartPtr<TDomain> dom = this->domain();
 	typename domain_type::position_accessor_type& aaPos = dom->position_accessor();
 
@@ -282,9 +282,9 @@ void ContactSmallStrainMechanics<TDomain, TGridFunction>::contact_forces_elem(
 // 	check if at least an element exists, else return
 	if(iterBegin == iterEnd) return;
 
-	typedef typename TGridFunction::domain_type domain_type;
-	typedef typename domain_type::grid_type grid_type;
-	typedef typename TGridFunction::element_type element_type;
+	using domain_type = typename TGridFunction::domain_type;
+	using grid_type = typename domain_type::grid_type;
+	using element_type = typename TGridFunction::element_type;
 	typename grid_type::template traits<element_type>::secure_container associatedElems;
 	typename domain_type::position_accessor_type& aaPos
 				= contactForce.domain()->position_accessor();

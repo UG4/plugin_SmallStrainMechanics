@@ -52,11 +52,11 @@ class MechOutputWriter
 {
 	private:
 	///	base element type of associated domain
-		typedef typename domain_traits<TDomain::dim>::grid_base_object TBaseElem;
+		using TBaseElem = typename domain_traits<TDomain::dim>::grid_base_object;
 
 	public:
 	///	World dimension
-		static const int dim = TDomain::dim;
+		static constexpr int dim = TDomain::dim;
 
 	public:
 	///	constructor

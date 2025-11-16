@@ -102,23 +102,23 @@ class SmallStrainMechanicsElemDisc
 {
 	private:
 	///	Base class type
-		typedef IElemDisc<TDomain> base_type;
+		using base_type = IElemDisc<TDomain>;
 
 	///	own type
-		typedef SmallStrainMechanicsElemDisc<TDomain> this_type;
+		using this_type = SmallStrainMechanicsElemDisc<TDomain>;
 
 	///	base element type of associated domain
-		typedef typename domain_traits<TDomain::dim>::grid_base_object TBaseElem;
+		using TBaseElem = typename domain_traits<TDomain::dim>::grid_base_object;
 
 	public:
 	///	Domain type
-		typedef typename base_type::domain_type domain_type;
+		using domain_type = typename base_type::domain_type;
 
 	///	World dimension
-		static const int dim = base_type::dim;
+		static constexpr int dim = base_type::dim;
 
 	///	Position type
-		typedef typename base_type::position_type position_type;
+		using position_type = typename base_type::position_type;
 
 	public:
 	/// constructor
@@ -363,9 +363,9 @@ class SmallStrainMechanicsElemDisc
 
 
 	public:
-			typedef SmartPtr<CplUserData<number, dim> > NumberExport;
-			typedef SmartPtr<CplUserData<MathVector<dim>, dim> > VectorExport;
-			typedef SmartPtr<CplUserData<MathMatrix<dim, dim>, dim> > MatrixExport;
+		using NumberExport = SmartPtr<CplUserData<number, dim> >;
+		using VectorExport = SmartPtr<CplUserData<MathVector<dim>, dim> >;
+		using MatrixExport = SmartPtr<CplUserData<MathMatrix<dim, dim>, dim> >;
 
 			NumberExport divergence() {return m_exDivergence;}
 			VectorExport displacement() {return m_exDisplacement;}

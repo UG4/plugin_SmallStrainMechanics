@@ -44,10 +44,10 @@ void plastic_ip_elem(bool& bPlasticIPs, TElem* elem,
 		const LocalVector& locU, SmartPtr<TDomain> dom,
 		SmallStrainMechanicsElemDisc<TDomain>& elemDisc)
 {
-	static const int dim = TDomain::dim;
+	static constexpr int dim = TDomain::dim;
 
 	//	get vertices and extract corner coordinates
-	typedef typename TDomain::position_accessor_type position_accessor_type;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	position_accessor_type& aaPos = dom->position_accessor();
 	MathVector<dim> coCoord[domain_traits<dim>::MaxNumVerticesOfElem];
 	const size_t numVertices = elem->num_vertices();
@@ -101,9 +101,9 @@ void MarkForAdaption_PlasticElem(IRefiner& refiner,
      SmallStrainMechanicsElemDisc<TDomain>& elemDisc)
 {
 //	types
-	typedef GridFunction<TDomain, TAlgebra> TFunction;
-	typedef typename TFunction::element_type element_type;
-	typedef typename DoFDistribution::traits<element_type>::const_iterator const_iterator;
+	using TFunction = GridFunction<TDomain, TAlgebra>;
+	using element_type = typename TFunction::element_type;
+	using const_iterator = typename DoFDistribution::traits<element_type>::const_iterator;
 
 	ConstSmartPtr<DoFDistribution> dd = u.dof_distribution();
 

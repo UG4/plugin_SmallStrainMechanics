@@ -46,9 +46,9 @@ void plast_ip(TGridFunction& plastIP,
 		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
 		TGridFunction& u)
 {
-	static const int dim = TGridFunction::dim;
-	typedef typename TGridFunction::template dim_traits<dim>::grid_base_object grid_base_object;
-	typedef typename TGridFunction::template dim_traits<dim>::const_iterator const_iterator;
+	static constexpr int dim = TGridFunction::dim;
+	using grid_base_object = typename TGridFunction::template dim_traits<dim>::grid_base_object;
+	using const_iterator = typename TGridFunction::template dim_traits<dim>::const_iterator;
 
 	// 	local indices and local algebra
 	LocalIndices ind; LocalVector locU, locPlastIP;
@@ -87,9 +87,9 @@ void equiv_plast_strain(TGridFunction& eqPlastStrain,
 		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
 		TGridFunction& u)
 {
-	static const int dim = TGridFunction::dim;
-	typedef typename TGridFunction::template dim_traits<dim>::grid_base_object grid_base_object;
-	typedef typename TGridFunction::template dim_traits<dim>::const_iterator const_iterator;
+	static constexpr int dim = TGridFunction::dim;
+	using grid_base_object = typename TGridFunction::template dim_traits<dim>::grid_base_object;
+	using const_iterator = typename TGridFunction::template dim_traits<dim>::const_iterator;
 
 	// 	local indices and local algebra
 	LocalIndices ind; LocalVector locU, locEqPlastStrain;
@@ -128,9 +128,9 @@ normal_stresses_strains(MechOutputWriter<typename TGridFunction::domain_type>& m
 		TGridFunction& sigma, TGridFunction& epsilon,
 		TGridFunction& stressFunc, TGridFunction& strainFunc, TGridFunction& u)
 {
-	static const int dim = TGridFunction::dim;
-	typedef typename TGridFunction::template dim_traits<dim>::grid_base_object grid_base_object;
-	typedef typename TGridFunction::template dim_traits<dim>::const_iterator const_iterator;
+	static constexpr int dim = TGridFunction::dim;
+	using grid_base_object = typename TGridFunction::template dim_traits<dim>::grid_base_object;
+	using const_iterator = typename TGridFunction::template dim_traits<dim>::const_iterator;
 
 	// 	local indices and local algebra
 	LocalIndices indU, indEps, indSig, indStressFunc, indStrainFunc;
@@ -179,9 +179,9 @@ void invariants_kirchhoff_stress(TGridFunction& invarKirchhoffStress,
 		MechOutputWriter<typename TGridFunction::domain_type>& mechOut,
 		TGridFunction& u)
 {
-	static const int dim = TGridFunction::dim;
-	typedef typename TGridFunction::template dim_traits<dim>::grid_base_object grid_base_object;
-	typedef typename TGridFunction::template dim_traits<dim>::const_iterator const_iterator;
+	static constexpr int dim = TGridFunction::dim;
+	using grid_base_object = typename TGridFunction::template dim_traits<dim>::grid_base_object;
+	using const_iterator = typename TGridFunction::template dim_traits<dim>::const_iterator;
 
 	// 	local indices and local algebra
 	LocalIndices ind, indInvarKirchhoffStress;
@@ -224,7 +224,7 @@ plastIP_elem(LocalVector& locPlastIP, TBaseElem* elem,
 		const LocalVector& locU, SmartPtr<TDomain> dom)
 {
 	//	get vertices and extract corner coordinates
-	typedef typename TDomain::position_accessor_type position_accessor_type;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	position_accessor_type& aaPos = dom->position_accessor();
 	MathVector<dim> coCoord[domain_traits<dim>::MaxNumVerticesOfElem];
 	const size_t numVertices = elem->num_vertices();
@@ -243,7 +243,7 @@ plastIP_elem(LocalVector& locPlastIP, TBaseElem* elem,
 
 	//	get all neighbor elems which share a vertex with the given element 'elem'
 	typename TDomain::grid_type& grid = *(dom->grid());
-	typedef typename vector<TBaseElem*>::iterator neighborElemIter;
+	using neighborElemIter = typename vector<TBaseElem*>::iterator;
 	vector<TBaseElem*> vNeighborElems;
 	CollectNeighbors(vNeighborElems, elem, grid, NHT_VERTEX_NEIGHBORS);
 
@@ -303,7 +303,7 @@ eqPlastStrain_elem(LocalVector& locEqPlastStrain, TBaseElem* elem,
 		const LocalVector& locU, SmartPtr<TDomain> dom)
 {
 	//	get vertices and extract corner coordinates
-	typedef typename TDomain::position_accessor_type position_accessor_type;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	position_accessor_type& aaPos = dom->position_accessor();
 	MathVector<dim> coCoord[domain_traits<dim>::MaxNumVerticesOfElem];
 	const size_t numVertices = elem->num_vertices();
@@ -322,7 +322,7 @@ eqPlastStrain_elem(LocalVector& locEqPlastStrain, TBaseElem* elem,
 
 	//	get all neighbor elems which share a vertex with the given element 'elem'
 	typename TDomain::grid_type& grid = *(dom->grid());
-	typedef typename vector<TBaseElem*>::iterator neighborElemIter;
+	using neighborElemIter = typename vector<TBaseElem*>::iterator;
 	vector<TBaseElem*> vNeighborElems;
 	CollectNeighbors(vNeighborElems, elem, grid, NHT_VERTEX_NEIGHBORS);
 
@@ -372,9 +372,9 @@ normal_stress_strain_elem(LocalVector& locSigma, LocalVector& locEps, LocalVecto
 	typename TDomain::grid_type& grid = *(dom->grid());
 	vector<TBaseElem*> vNeighborElems;
 	CollectNeighbors(vNeighborElems, elem, grid, NHT_VERTEX_NEIGHBORS);
-	typedef typename vector<TBaseElem*>::iterator neighborElemIter;
+	using neighborElemIter = typename vector<TBaseElem*>::iterator;
 
-	typedef typename TDomain::position_accessor_type position_accessor_type;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	position_accessor_type& aaPos = dom->position_accessor();
 
 	//	coord and vertex array
@@ -553,7 +553,7 @@ invariants_kirchhoff_stress_elem(LocalVector& locInvarKirchhoffStress,
 		TBaseElem* elem, const LocalVector& u, SmartPtr<TDomain> dom)
 {
 	//	get vertices and extract corner coordinates
-	typedef typename TDomain::position_accessor_type position_accessor_type;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	position_accessor_type& aaPos = dom->position_accessor();
 	MathVector<dim> coCoord[domain_traits<dim>::MaxNumVerticesOfElem];
 	const size_t numVertices = elem->num_vertices();
@@ -572,7 +572,7 @@ invariants_kirchhoff_stress_elem(LocalVector& locInvarKirchhoffStress,
 
 	//	get all neighbor elems which share a vertex with the given element 'elem'
 	typename TDomain::grid_type& grid = *(dom->grid());
-	typedef typename vector<TBaseElem*>::iterator neighborElemIter;
+	using neighborElemIter = typename vector<TBaseElem*>::iterator;
 	vector<TBaseElem*> vNeighborElems;
 	CollectNeighbors(vNeighborElems, elem, grid, NHT_VERTEX_NEIGHBORS);
 
@@ -659,7 +659,7 @@ MechOutputWriter<TDomain>::
 post_timestep_elem(const number time, SmartPtr<TDomain> dom, TFEGeom& geo,
 		TBaseElem* elem, const LocalVector& u)
 {
-	typedef typename TDomain::position_accessor_type position_accessor_type;
+	using position_accessor_type = typename TDomain::position_accessor_type;
 	position_accessor_type& aaPos = dom->position_accessor();
 
 	if (m_stressEV && (!m_bIP_values_written))

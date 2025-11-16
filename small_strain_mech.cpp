@@ -172,8 +172,7 @@ update_geo_elem(TBaseElem* elem, DimFEGeometry<dim>& geo)
 {
 	SmartPtr<TDomain> dom = this->domain();
 
-	typedef typename IElemDisc<TDomain>::domain_type::position_accessor_type
-			position_accessor_type;
+	using position_accessor_type = typename IElemDisc<TDomain>::domain_type::position_accessor_type;
 	const position_accessor_type& aaPos = dom->position_accessor();
 
 	//	coord and vertex array
@@ -231,8 +230,7 @@ init_state_variables(const size_t order)
 	// 	and it remains attached until the
 	//	destructor of SmallStrainMechanicsElemDisc!
 	DimFEGeometry<dim> geo;
-	typedef typename TDomain::grid_type::template traits<TBaseElem>::iterator
-			ElemIter;
+	using ElemIter = typename TDomain::grid_type::template traits<TBaseElem>::iterator;
 	for (ElemIter iter = grid.template begin<TBaseElem> (); iter
 			!= grid.template end<TBaseElem> (); iter++)
 	{
@@ -290,7 +288,7 @@ prep_elem_loop(const ReferenceObjectID roid, const int si)
 					" Cannot update Finite Element Geometry.");
 
 	//	set local positions for rhs
-	static const int refDim = TElem::dim;
+	static constexpr int refDim = TElem::dim;
 	m_imVolForce.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), true);
 	m_imDivergence.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
 	m_imCompressIndex.template  set_local_ips<refDim>(geo.local_ips(), geo.num_ip(), false);
@@ -350,7 +348,7 @@ add_jac_A_elem(LocalMatrix& J, const LocalVector& u,
 	/////// for brittle ///////
 	number scale = 1.0;
 	IScaledHookeLaw<TDomain>* pScaledHooke = dynamic_cast<IScaledHookeLaw<TDomain>*>(m_spMatLaw.get());
-	if(pScaledHooke != NULL){
+	if(pScaledHooke != nullptr){
 		scale = pScaledHooke->scaling_on_curr_elem();
 	}
 	/////// for brittle (end) ///////
@@ -457,9 +455,9 @@ add_def_A_elem(LocalVector& d, const LocalVector& u,
 
 	////////////// for brittle //////////////////
 	number scale = 1.0;
-	number* energy = NULL;
+	number* energy = nullptr;
 	IScaledHookeLaw<TDomain>* pScaledHooke = dynamic_cast<IScaledHookeLaw<TDomain>*>(m_spMatLaw.get());
-	if(pScaledHooke != NULL)
+	if(pScaledHooke != nullptr)
 	{
 		scale = pScaledHooke->scaling_on_curr_elem();
 		energy = &pScaledHooke->energy_on_curr_elem();
@@ -869,7 +867,7 @@ template <typename TDomain>
 SmallStrainMechanicsElemDisc<TDomain>::
 SmallStrainMechanicsElemDisc(const char* functions, const char* subsets) :
 			IElemDisc<TDomain> (functions, subsets),
-			m_spMatLaw(SPNULL), m_spElastTensor(SPNULL), m_spOutWriter(SPNULL),
+			m_spMatLaw(nullptr), m_spElastTensor(nullptr), m_spOutWriter(nullptr),
 			m_bOutWriter(false), m_bMatLawPassedToOutWriter(false),
 			m_exDivergence(new DataExport<number, dim>(functions)),
 			m_exDisplacement(new DataExport<MathVector<dim>, dim>(functions)),
@@ -937,14 +935,13 @@ ex_stress_fe(MathMatrix<dim,dim> vValue[],
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
 	//	reference element
-	typedef typename reference_element_traits<TElem>::reference_element_type
-			ref_elem_type;
+	using ref_elem_type = typename reference_element_traits<TElem>::reference_element_type;
 
 	//	reference dimension
-	static const int refDim = reference_element_traits<TElem>::dim;
+	static constexpr int refDim = reference_element_traits<TElem>::dim;
 
 	//	reference object id
-	static const ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
+	static constexpr ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
 
 	UG_ASSERT(bDeriv==false ,"Huhh: Some one was lazy - please implement derivatives!");
 
@@ -1047,14 +1044,13 @@ ex_displacement_fe(MathVector<dim> vValue[],
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
 	//	reference element
-	typedef typename reference_element_traits<TElem>::reference_element_type
-			ref_elem_type;
+	using ref_elem_type = typename reference_element_traits<TElem>::reference_element_type;
 
 	//	reference dimension
-	static const int refDim = reference_element_traits<TElem>::dim;
+	static constexpr int refDim = reference_element_traits<TElem>::dim;
 
 	//	reference object id
-	static const ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
+	static constexpr ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
 
 	//	FE
 	if(vLocIP == geo.local_ips())
@@ -1147,14 +1143,13 @@ ex_divergence_fe(number vValue[],
 	const TFEGeom& geo = GeomProvider<TFEGeom>::get(m_lfeID, m_quadOrder);
 
 	//	reference element
-	typedef typename reference_element_traits<TElem>::reference_element_type
-			ref_elem_type;
+	using ref_elem_type = typename reference_element_traits<TElem>::reference_element_type;
 
 	//	reference dimension
-	static const int refDim = reference_element_traits<TElem>::dim;
+	static constexpr int refDim = reference_element_traits<TElem>::dim;
 
 	//	reference object id
-	static const ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
+	static constexpr ReferenceObjectID roid = ref_elem_type::REFERENCE_OBJECT_ID;
 
 	//	FE
 	if(vLocIP == geo.local_ips())
@@ -1286,18 +1281,18 @@ void SmallStrainMechanicsElemDisc<Domain2d>::register_all_fe_funcs(int order,
 	switch (order)
 	{
 		case 1:{
-			typedef FEGeometry<Triangle, dim, LagrangeLSFS<ReferenceTriangle, 1> ,
-					GaussQuadrature<ReferenceTriangle, 3> > FEGeom;
+			using FEGeom = FEGeometry<Triangle, dim, LagrangeLSFS<ReferenceTriangle, 1> ,
+				GaussQuadrature<ReferenceTriangle, 3> >;
 			register_fe_func<Triangle, FEGeom > (); break;
 		}
 		case 2:{
-			typedef FEGeometry<Triangle, dim, LagrangeLSFS<ReferenceTriangle, 2> ,
-					GaussQuadrature<ReferenceTriangle, 5> > FEGeom;
+			using FEGeom = FEGeometry<Triangle, dim, LagrangeLSFS<ReferenceTriangle, 2> ,
+				GaussQuadrature<ReferenceTriangle, 5> >;
 			register_fe_func<Triangle, FEGeom > (); break;
 		}
 		case 3:{
-			typedef FEGeometry<Triangle, dim, LagrangeLSFS<ReferenceTriangle, 3> ,
-					GaussQuadrature<ReferenceTriangle, 7> > FEGeom;
+			using FEGeom = FEGeometry<Triangle, dim, LagrangeLSFS<ReferenceTriangle, 3> ,
+				GaussQuadrature<ReferenceTriangle, 7> >;
 			register_fe_func<Triangle, FEGeom > (); break;
 		}
 		default: register_fe_func<Triangle, DimFEGeometry<dim> > (); break;
@@ -1307,21 +1302,21 @@ void SmallStrainMechanicsElemDisc<Domain2d>::register_all_fe_funcs(int order,
 	switch (order)
 	{
 		case 1:{
-			typedef FEGeometry<Quadrilateral, dim, LagrangeLSFS<
-					ReferenceQuadrilateral, 1> , GaussQuadrature<
-					ReferenceQuadrilateral, 3> > FEGeom;
+			using FEGeom = FEGeometry<Quadrilateral, dim, LagrangeLSFS<
+				ReferenceQuadrilateral, 1> , GaussQuadrature<
+				ReferenceQuadrilateral, 3> >;
 			register_fe_func<Quadrilateral, FEGeom > (); break;
 		}
 		case 2:{
-			typedef FEGeometry<Quadrilateral, dim, LagrangeLSFS<
-					ReferenceQuadrilateral, 2> , GaussQuadrature<
-					ReferenceQuadrilateral, 7> > FEGeom;
+			using FEGeom = FEGeometry<Quadrilateral, dim, LagrangeLSFS<
+				ReferenceQuadrilateral, 2> , GaussQuadrature<
+				ReferenceQuadrilateral, 7> >;
 			register_fe_func<Quadrilateral, FEGeom > (); break;
 		}
 		case 3:{
-			typedef FEGeometry<Quadrilateral, dim, LagrangeLSFS<
-					ReferenceQuadrilateral, 3> , GaussQuadrature<
-					ReferenceQuadrilateral, 11> > FEGeom;
+			using FEGeom = FEGeometry<Quadrilateral, dim, LagrangeLSFS<
+				ReferenceQuadrilateral, 3> , GaussQuadrature<
+				ReferenceQuadrilateral, 11> >;
 			register_fe_func<Quadrilateral, FEGeom > (); break;
 		}
 		default: register_fe_func<Quadrilateral, DimFEGeometry<dim> > (); break;
@@ -1347,21 +1342,21 @@ void SmallStrainMechanicsElemDisc<Domain3d>::register_all_fe_funcs(int order,
 	switch (order) 
 	{
 		case 1:{
-			typedef FEGeometry<Tetrahedron, dim, LagrangeLSFS<
+			using FEGeom = FEGeometry<Tetrahedron, dim, LagrangeLSFS<
 				ReferenceTetrahedron, 1> , GaussQuadrature<
-				ReferenceTetrahedron, 3> > FEGeom;
+				ReferenceTetrahedron, 3> >;
 			register_fe_func<Tetrahedron, FEGeom > (); break;
 		}
 		case 2:{
-			typedef FEGeometry<Tetrahedron, dim, LagrangeLSFS<
-					ReferenceTetrahedron, 2> , GaussQuadrature<
-					ReferenceTetrahedron, 5> > FEGeom;
+			using FEGeom = FEGeometry<Tetrahedron, dim, LagrangeLSFS<
+				ReferenceTetrahedron, 2> , GaussQuadrature<
+				ReferenceTetrahedron, 5> >;
 			register_fe_func<Tetrahedron, FEGeom > (); break;
 		}
 		case 3:{
-			typedef FEGeometry<Tetrahedron, dim, LagrangeLSFS<
-					ReferenceTetrahedron, 3> , GaussQuadrature<
-					ReferenceTetrahedron, 7> > FEGeom;
+			using FEGeom = FEGeometry<Tetrahedron, dim, LagrangeLSFS<
+				ReferenceTetrahedron, 3> , GaussQuadrature<
+				ReferenceTetrahedron, 7> >;
 			register_fe_func<Tetrahedron, FEGeom > (); break;
 		}
 		default: register_fe_func<Tetrahedron, DimFEGeometry<dim> > (); break;
@@ -1372,8 +1367,8 @@ void SmallStrainMechanicsElemDisc<Domain3d>::register_all_fe_funcs(int order,
 	switch (order)
 	{
 		case 1:{
-			typedef FEGeometry<Prism, dim, LagrangeLSFS<ReferencePrism, 1> ,
-					GaussQuadrature<ReferencePrism, 2> > FEGeom;
+			using FEGeom = FEGeometry<Prism, dim, LagrangeLSFS<ReferencePrism, 1> ,
+				GaussQuadrature<ReferencePrism, 2> >;
 			register_fe_func<Prism, FEGeom > (); break;
 		}
 		default:
@@ -1391,28 +1386,28 @@ void SmallStrainMechanicsElemDisc<Domain3d>::register_all_fe_funcs(int order,
 	{
 		case 1:{
 			if (quadOrder == 2){
-				typedef FEGeometry<Hexahedron, dim, LagrangeLSFS<
-				ReferenceHexahedron, 1> , GaussQuadrature<
-				ReferenceHexahedron, 2> > FEGeom;
+				using FEGeom = FEGeometry<Hexahedron, dim, LagrangeLSFS<
+					ReferenceHexahedron, 1> , GaussQuadrature<
+					ReferenceHexahedron, 2> >;
 				register_fe_func<Hexahedron, FEGeom > (); break;
 			}
 			else{
-				typedef FEGeometry<Hexahedron, dim, LagrangeLSFS<
-				ReferenceHexahedron, 1> , GaussQuadrature<
-				ReferenceHexahedron, 3> > FEGeom;
+				using FEGeom = FEGeometry<Hexahedron, dim, LagrangeLSFS<
+					ReferenceHexahedron, 1> , GaussQuadrature<
+					ReferenceHexahedron, 3> >;
 				register_fe_func<Hexahedron, FEGeom > (); break;
 			}
 		}
 		case 2:{
-			typedef FEGeometry<Hexahedron, dim, LagrangeLSFS<
-					ReferenceHexahedron, 2> , GaussQuadrature<
-					ReferenceHexahedron, 7> > FEGeom;
+			using FEGeom = FEGeometry<Hexahedron, dim, LagrangeLSFS<
+				ReferenceHexahedron, 2> , GaussQuadrature<
+				ReferenceHexahedron, 7> >;
 			register_fe_func<Hexahedron, FEGeom > (); break;
 		}
 		case 3:{
-			typedef FEGeometry<Hexahedron, dim, LagrangeLSFS<
-					ReferenceHexahedron, 3> , GaussQuadrature<
-					ReferenceHexahedron, 11> > FEGeom;
+			using FEGeom = FEGeometry<Hexahedron, dim, LagrangeLSFS<
+				ReferenceHexahedron, 3> , GaussQuadrature<
+				ReferenceHexahedron, 11> >;
 			register_fe_func<Hexahedron, FEGeom > (); break;
 		}
 		default: register_fe_func<Hexahedron, DimFEGeometry<dim> > (); break;
@@ -1425,8 +1420,8 @@ template<typename TElem, typename TFEGeom>
 void SmallStrainMechanicsElemDisc<TDomain>::register_fe_func()
 {
 	ReferenceObjectID id = geometry_traits<TElem>::REFERENCE_OBJECT_ID;
-	typedef this_type T;
-	static const int refDim = reference_element_traits<TElem>::dim;
+	using T = this_type;
+	static constexpr int refDim = reference_element_traits<TElem>::dim;
 
 	this->clear_add_fct(id);
 

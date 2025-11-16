@@ -52,14 +52,15 @@ number MaxEdgeLength(TDomain& dom, MathVector<TDomain::dim>& ndir)
 
 	UG_ASSERT(TDomain::dim == 3, "dimension must be 3!");
 
-	typedef typename domain_traits<TDomain::dim>::element_type elem_t;
-	typedef typename MultiGrid::traits<elem_t>::iterator iter_t;
+	using elem_t = typename domain_traits<TDomain::dim>::element_type;
+	using iter_t = typename MultiGrid::traits<elem_t>::iterator;
+	typename TDomain::position_accessor_type aaPos;
 
-	typename TDomain::position_accessor_type aaPos = dom.position_accessor();
+	aaPos = dom.position_accessor();
 	MultiGrid& mg = *dom.grid();
 	MultiGrid::edge_traits::secure_container edges;
 
-	typedef MathVector<TDomain::dim> vector_t;
+	using vector_t = MathVector<TDomain::dim>;
 
 	number maxSq = 0;
 
@@ -95,14 +96,14 @@ void MarkAnisotropic_Along_Normal(TDomain& dom, IRefiner& refiner, MathVector<TD
 
 	UG_ASSERT(TDomain::dim == 3, "dimension must be 3!");
 
-	typedef typename domain_traits<TDomain::dim>::element_type elem_t;
-	typedef typename MultiGrid::traits<elem_t>::iterator iter_t;
+	using elem_t = typename domain_traits<TDomain::dim>::element_type;
+	using iter_t = typename MultiGrid::traits<elem_t>::iterator;
 
 	typename TDomain::position_accessor_type aaPos = dom.position_accessor();
 	MultiGrid& mg = *dom.grid();
 	MultiGrid::edge_traits::secure_container edges;
 
-	typedef MathVector<TDomain::dim> vector_t;
+	using vector_t = MathVector<TDomain::dim>;
 
 	for(iter_t e_iter = mg.begin<elem_t>(); e_iter != mg.end<elem_t>(); ++e_iter){
 		elem_t* elem = *e_iter;
@@ -137,7 +138,7 @@ void MarkAnisotropic_Longest_Scaled_Normal(TDomain& dom, IRefiner& refiner, numb
 
 	UG_ASSERT(TDomain::dim == 3, "dimension must be 3!");
 
-	typedef MathVector<TDomain::dim> vector_t;
+	using vector_t = MathVector<TDomain::dim>;
 
 	vector_t ndirX; //x tang
 	vector_t ndirY; //y long

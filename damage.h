@@ -50,13 +50,13 @@ namespace SmallStrainMechanics{
 template <int dim> struct contrained_dim_traits;
 template <> struct contrained_dim_traits<2>
 {
-	typedef ConstrainedEdge contrained_side_type;
-	typedef ConstrainingEdge contraining_side_type;
+	using contrained_side_type = ConstrainedEdge;
+	using contraining_side_type = ConstrainingEdge;
 };
 template <> struct contrained_dim_traits<3>
 {
-	typedef ConstrainedFace contrained_side_type;
-	typedef ConstrainingFace contraining_side_type;
+	using contrained_side_type = ConstrainedFace;
+	using contraining_side_type = ConstrainingFace;
 };
 
 
@@ -111,13 +111,13 @@ template <typename TDomain>
 class DamageFunctionUpdater
 {
 	public:
-		static const int dim = TDomain::dim;
-		typedef typename TDomain::grid_type TGrid;
-		typedef typename grid_dim_traits<dim>::element_type TElem; 
-		typedef typename grid_dim_traits<dim>::side_type TSide; 
-		typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-		typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
-		typedef typename TDomain::position_accessor_type TPositionAccessor;
+		static constexpr int dim = TDomain::dim;
+		using TGrid = typename TDomain::grid_type;
+		using TElem = typename grid_dim_traits<dim>::element_type;
+		using TSide = typename grid_dim_traits<dim>::side_type;
+		using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+		using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
+		using TPositionAccessor = typename TDomain::position_accessor_type;
 
 	/////////////////////////////////////////////////
 	// Setup and Solve
@@ -179,14 +179,14 @@ template <typename TDomain>
 class RelativeDensityUpdater
 {
 	public:
-		static const int dim = TDomain::dim;
-		typedef typename TDomain::grid_type TGrid;
-		typedef typename grid_dim_traits<dim>::element_type TElem; 
-		typedef typename grid_dim_traits<dim>::side_type TSide; 
-		typedef typename contrained_dim_traits<dim>::contrained_side_type TContrainedSide; 
-		typedef typename contrained_dim_traits<dim>::contraining_side_type TContrainingSide; 
+		static constexpr int dim = TDomain::dim;
+		using TGrid = typename TDomain::grid_type;
+		using TElem = typename grid_dim_traits<dim>::element_type;
+		using TSide = typename grid_dim_traits<dim>::side_type;
+		using TContrainedSide = typename contrained_dim_traits<dim>::contrained_side_type;
+		using TContrainingSide = typename contrained_dim_traits<dim>::contraining_side_type;
 
-		typedef typename TDomain::position_accessor_type TPositionAccessor;
+		using TPositionAccessor = typename TDomain::position_accessor_type;
 
 		RelativeDensityUpdater() : m_discType(_LEAST_SQUARES_), m_quadRuleType(2), m_bEnforceLocalRequiredBeta(false) {}
 

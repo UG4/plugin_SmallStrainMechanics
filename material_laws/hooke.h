@@ -79,11 +79,11 @@ class HookeLaw
 {
 	private:
 	///	Base class type
-		typedef IMaterialLaw<TDomain> base_type;
+		using base_type = IMaterialLaw<TDomain>;
 
 	public:
 	///	World dimension
-		static const int dim = base_type::dim;
+		static constexpr int dim = base_type::dim;
 
 	public:
 	///	constructor

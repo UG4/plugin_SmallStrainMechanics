@@ -39,9 +39,9 @@ namespace SmallStrainMechanics{
 template <typename TDomain>
 class VoigtianMatrix{
 public:
-	static const int dim = IMaterialLaw<TDomain>::dim;
+	static constexpr int dim = IMaterialLaw<TDomain>::dim;
 
-	VoigtianMatrix(){}
+	VoigtianMatrix() = default;
 	
 	void set_orthotropic(const number C11, const number C12, const number C13,
 						 const number C22, const number C23, const number C33,
