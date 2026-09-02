@@ -26,6 +26,6 @@ cmake.version = ">=3.15"
 cmake.source-dir = "ug4-git/plugins/SmallStrainMechanics"  # ← final CMakeLists.txt will be in this subdir!
 
 # Setting DUG_ROOT_CMAKE_PATH is important!
-cmake.args=['-DBUILD_WITH_PIP=ON', '-DCMAKE_POSITION_INDEPENDENT_CODE=ON', '-DTARGET=libug4','-DPARALLEL:BOOL=OFF','-DUSE_PYBIND11:BOOL=ON', '-DSTATIC_BUILD:BOOL=ON','-DCPU=ALL', '-DCPU=1'] 
+cmake.args=['-DBUILD_WITH_PIP=ON', '-DCMAKE_POSITION_INDEPENDENT_CODE=ON', '-DTARGET=pyugcore','-DPARALLEL:BOOL=OFF', '-DCPU=1'] 
 
 logging.level = "DEBUG"
