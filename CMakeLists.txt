@@ -80,13 +80,13 @@ if(USE_PYBIND11)
 	###############################################
 	# 0) Try to locate ug_4 static library....
 	###############################################
-	set(UG4_STATIC_LIBRARY ug4_s)
-	if (BUILD_WITH_PIP)
-		get_libug4_from_pip(PYUG4_STATIC_LIBRARY)
-		message(STATUS "Library found: ${PYUG4_STATIC_LIBRARY}")
-		set(UG4_STATIC_LIBRARY ${PYUG4_STATIC_LIBRARY})
-	endif()
-	message(STATUS "Using libug4_s: ${UG4_STATIC_LIBRARY}")
+	#set(UG4_STATIC_LIBRARY ug4_s)
+	#if (BUILD_WITH_PIP)
+	#	get_libug4_from_pip(PYUG4_STATIC_LIBRARY)
+	#	message(STATUS "Library found: ${PYUG4_STATIC_LIBRARY}")
+	#	set(UG4_STATIC_LIBRARY ${PYUG4_STATIC_LIBRARY})
+	#endif()
+	#message(STATUS "Using libug4_s: ${UG4_STATIC_LIBRARY}")
 	
 
 	###############################################
@@ -100,7 +100,7 @@ if(USE_PYBIND11)
 	###############################################
 	set(PY_TARGET_NAME pysmallstrainmechanics)
 	python_add_library(${PY_TARGET_NAME} MODULE small_strain_mech_pybind.cpp ${SOURCES} WITH_SOABI)
-	target_link_libraries (${PY_TARGET_NAME} PRIVATE ${pluginName} ${UG4_STATIC_LIBRARY})
+	target_link_libraries (${PY_TARGET_NAME} PRIVATE ${pluginName} ${targetLibraryName})  # targetLibraryName is either ug4 or ug4_s
 	set_target_properties(${PY_TARGET_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN/..:$ORIGIN/../../../lib")
 	install(TARGETS ${PY_TARGET_NAME} LIBRARY DESTINATION ug4py COMPONENT pymodules)
 endif(USE_PYBIND11)
