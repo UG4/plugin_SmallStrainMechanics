@@ -101,7 +101,13 @@ if(USE_PYBIND11)
 	set(PY_TARGET_NAME pysmallstrainmechanics)
 	python_add_library(${PY_TARGET_NAME} MODULE small_strain_mech_pybind.cpp ${SOURCES} WITH_SOABI)
 	target_link_libraries (${PY_TARGET_NAME} PRIVATE ${pluginName} ${targetLibraryName})  # targetLibraryName is either ug4 or ug4_s
-	set_target_properties(${PY_TARGET_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN/..:$ORIGIN/../../../lib")
+	if(APPLE)
+    	set_target_properties(${PY_TARGET_NAME} PROPERTIES 
+    		INSTALL_RPATH "@loader_path/../lib"
+    		BUILD_WITH_INSTALL_RPATH TRUE)
+	elseif(LINUX AND NOT APPLE)
+		set_target_properties(${PY_TARGET_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib")
+	endif()
 	install(TARGETS ${PY_TARGET_NAME} LIBRARY DESTINATION ug4py COMPONENT pymodules)
 endif(USE_PYBIND11)
 
