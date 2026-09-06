@@ -45,6 +45,7 @@
 #include "small_strain_mech.h"
 //#include "adaptive_util.h"
 #include "contact/contact.h"
+#include "obstacle/mech_obstacle_base.h"
 
 #include "material_laws/hooke.h"
 #include "material_laws/scaled_hooke_law.h"
@@ -105,6 +106,17 @@ static void DomainAlgebra(TRegistry& reg, string grp)
 			.template add_constructor<void (*)(SmartPtr<SmallStrainMechanicsElemDisc<TDomain> >)>("domain disc")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "ContactSmallStrainMechanics", tag);
+	}
+	
+//	Constraint for the Signorini boundary
+	{
+		typedef SignoriniConstraint<TDomain, TAlgebra> T;
+		typedef IDomainConstraint<TDomain, TAlgebra> TBase;
+		string name = string("SignoriniConstraint").append(suffix);
+		reg.template add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(SmartPtr<TDomain>,const char*,const char*)>("Domain#Functions#Flag")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "SignoriniConstraint", tag);
 	}
 
 //	functionality for output
