@@ -46,6 +46,7 @@
 //#include "adaptive_util.h"
 #include "contact/contact.h"
 #include "obstacle/mech_obstacle_base.h"
+#include "obstacle/coord_optim_solver.h"
 
 #include "material_laws/hooke.h"
 #include "material_laws/scaled_hooke_law.h"
@@ -340,6 +341,40 @@ static void Domain(TRegistry& reg, string grp)
 }
 
 /**
+ * Function called for the registration of Algebra dependent parts.
+ * All Functions and Classes depending on Algebra
+ * are to be placed here when registering. The method is called for all
+ * available Algebra types, based on the current build options.
+ *
+ * @param reg				registry
+ * @param parentGroup		group for sorting of functionality
+ */
+template <typename TAlgebra>
+static void Algebra(Registry& reg, string grp)
+{
+	string suffix = GetAlgebraSuffix<TAlgebra>();
+	string tag = GetAlgebraTag<TAlgebra>();
+
+//	typedefs for this algebra
+	typedef typename TAlgebra::vector_type vector_type;
+	typedef typename TAlgebra::matrix_type matrix_type;
+
+// 	LinearSolver
+	{
+		typedef ObstacleGaussSeidel<TAlgebra> T;
+		typedef IMatrixOperatorInverse<matrix_type, vector_type> TBase;
+		string name = string("ObstacleGaussSeidel").append(suffix);
+		reg.add_class_<T,TBase>(name, grp, "Coordinate Direction Optimizer")
+			.add_constructor()
+			.add_method("set_contact_bnd_flag", static_cast<void (T::*) (const char*)>(&T::set_contact_bnd_flag), "set the name of the flag for contact bnd", "name")
+			.add_method("set_lower_bnd", static_cast<void (T::*) (const vector_type*)>(&T::set_lower_bnd), "set the vector of the lower bounds", "vector")
+			.add_method("set_upper_bnd", static_cast<void (T::*) (const vector_type*)>(&T::set_upper_bnd), "set the vector of the upper bounds", "vector")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "ObstacleGaussSeidel", tag);
+	}
+}
+
+/**
  * Function called for the registration of Dimension dependent parts
  * of the plugin. All Functions and Classes depending on the Dimension
  * are to be placed here when registering. The method is called for all
@@ -379,9 +414,11 @@ void InitUGPlugin_SmallStrainMechanics_(TRegistry& reg, string grp)
 	try{
 #ifdef UG_USE_PYBIND11
 		RegisterDomain2d3dDependent<Functionality, TRegistry>(reg,grp);
+		RegisterAlgebraDependent<Functionality, TRegistry>(reg,grp);
 		RegisterDomain2d3dAlgebraDependent<Functionality, TRegistry>(reg,grp);
 #else
 		RegisterDomain2d3dDependent<Functionality>(reg,grp);
+		RegisterAlgebraDependent<Functionality>(reg,grp);
 		RegisterDomain2d3dAlgebraDependent<Functionality>(reg,grp);
 #endif
 	}
