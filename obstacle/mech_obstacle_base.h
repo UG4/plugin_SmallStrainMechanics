@@ -45,6 +45,7 @@
 #include "lib_algebra/dof_flag_manager.h"
 #include "lib_disc/spatial_disc/user_data/user_data.h"
 #include "lib_disc/spatial_disc/constraints/constraint_interface.h"
+#include "constr_grid_function.h"
 
 namespace ug{
 namespace SmallStrainMechanics{
@@ -138,8 +139,14 @@ public:
 ///	type of algebra vector
 	typedef typename algebra_type::vector_type vector_type;
 	
+///	type of the obstacle class
+	typedef SignoriniObstacle<domain_type> obstacle_type;
+	
 ///	the type map for the constrants
-	typedef typename std::map<int, SmartPtr<SignoriniObstacle<domain_type> > > constr_map_type;
+	typedef typename std::map<int, SmartPtr<obstacle_type> > constr_map_type;
+
+///	type of the constrained grid function
+	typedef ConstrainedGridFunction<domain_type, algebra_type> cgf_type;
 
 public:
 
@@ -188,7 +195,7 @@ public:
 	void add
 	(
 		int ssi, ///< subset index
-		SmartPtr<SignoriniObstacle<domain_type> > spConstr ///< the constraint
+		SmartPtr<obstacle_type> spConstr ///< the constraint
 	)
 	{
 		if(m_mspConstraints.find(ssi) != m_mspConstraints.end())
@@ -200,7 +207,7 @@ public:
 	void add
 	(
 		std::string ss_names, ///< list of subset names
-		SmartPtr<SignoriniObstacle<domain_type> > spConstr ///< the constraint
+		SmartPtr<obstacle_type> spConstr ///< the constraint
 	)
 	{
 		std::vector<std::string> vNames;
@@ -215,6 +222,8 @@ public:
 		for(size_t i = 0; i < ssg.size(); i++)
 			add(ssg[i], spConstr);
 	}
+	
+public:
 	
 //	IDomainConstraint interface
 	
@@ -293,14 +302,24 @@ public:
 								 number time = 0.0)
 	{
 		matrix_type transform;
-		vector_type bnd_gf;
+		SmartPtr<vector_type> bnd_gf;
+		
+		cgf_type* cgf_u = dynamic_cast<cgf_type*>(&u);
+		if(cgf_u)
+        {
+            cgf_u->create_upper_bnd();
+            bnd_gf = cgf_u->upper_bnd();
+        }
+		else
+			bnd_gf = make_sp(new vector_type(u.size()));
+        
+        (*bnd_gf) = 0; //ToDo: If we should do this here...
 		
 		transform.resize_and_clear(u.size(), u.size());
-		bnd_gf.resize(u.size());
 		
 		FunctionGroup fctGrp (dd->function_pattern(), m_vsFctNames);
 		
-		mark_signorini_bnd(*dd, fctGrp, transform, bnd_gf, time);
+		mark_signorini_bnd(*dd, fctGrp, transform, *bnd_gf, time);
 		transform_vector(transform, u);
 	}
 

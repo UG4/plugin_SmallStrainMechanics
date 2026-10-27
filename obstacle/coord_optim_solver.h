@@ -38,6 +38,7 @@
 
 #include "lib_algebra/operator/interface/matrix_operator_inverse.h"
 #include "lib_algebra/operator/interface/linear_solver_profiling.h"
+#include "constr_grid_function.h"
 #ifdef UG_PARALLEL
 	#include "lib_algebra/parallelization/parallelization.h"
 #endif
@@ -50,23 +51,30 @@ namespace SmallStrainMechanics{
  * The method is based on the optimization along the coordinate directions
  * (a Gauss-Seidel-like method) with constraints (obstacles).
  *
+ * The dependence on TDomain is only due to ConstrainedGridFunction!
+ *
+ * \tparam 		TDomain			domain type
  * \tparam 		TAlgebra		algebra type
  */
-template <typename TAlgebra>
+template <typename TDomain, typename TAlgebra>
 class ObstacleGaussSeidel
 	: public IMatrixOperatorInverse<typename TAlgebra::matrix_type, typename TAlgebra::vector_type>,
 	  public DebugWritingObject<TAlgebra>
 {
 	typedef IMatrixOperatorInverse<typename TAlgebra::matrix_type, typename TAlgebra::vector_type> base_type;
 
-protected:
+public:
 	using base_type::convergence_check;
 	using base_type::linear_operator;
 	
 	using DebugWritingObject<TAlgebra>::debug_writer;
 	using DebugWritingObject<TAlgebra>::write_debug;
+	using DebugWritingObject<TAlgebra>::set_debug;
 
 public:
+/// Domain type (only for ConstrainedGridFunction)
+	typedef TDomain domain_type;
+	
 ///	Algebra type
 	typedef TAlgebra algebra_type;
 	static const int blockSize = algebra_type::blockSize;
@@ -77,6 +85,9 @@ public:
 
 ///	Matrix type
 	typedef typename TAlgebra::matrix_type matrix_type;
+	
+///	type of the constrained grid function
+	typedef ConstrainedGridFunction<domain_type, algebra_type> cgf_type;
 	
 ///	Flag manager type
 	typedef DoFFlagManager<algebra_type> flag_mng_type;

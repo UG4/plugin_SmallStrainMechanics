@@ -150,8 +150,8 @@ void SignoriniConstraint<TDomain, TAlgebra>::mark_signorini_bnd
 			(bnd_gf, i, m_bnd_flag[0], m_bnd_flag[1], 0);
 	
 //	initialize the transform and the bound
-	transform.set(1.0); // set to the identity matrix
 	bnd_gf.set(0.0); // set to zero to initialize everywhere (it is used only where the flags are set)
+	for(size_t i = 0; i < transform.num_rows(); i++) transform(i,i) = 1.0; // set to the identity matrix
 	
 //	set the transform and the bound at the selected boundary
 	if(dd.max_dofs(VERTEX))

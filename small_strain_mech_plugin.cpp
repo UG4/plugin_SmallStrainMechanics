@@ -47,6 +47,7 @@
 #include "contact/contact.h"
 #include "obstacle/mech_obstacle_base.h"
 #include "obstacle/coord_optim_solver.h"
+#include "obstacle/constr_grid_function.h"
 
 #include "material_laws/hooke.h"
 #include "material_laws/scaled_hooke_law.h"
@@ -96,6 +97,11 @@ static void DomainAlgebra(TRegistry& reg, string grp)
 	string suffix = GetDomainAlgebraSuffix<TDomain,TAlgebra>();
 	string tag = GetDomainAlgebraTag<TDomain,TAlgebra>();
 
+//	typedefs for this algebra
+	typedef typename TAlgebra::vector_type vector_type;
+	typedef typename TAlgebra::matrix_type matrix_type;
+	
+//	typedefs for the domain and algebra
 	typedef GridFunction<TDomain, TAlgebra> function_type;
 
 //	Contact Disc for SmallStrainMechanics-contact problems
@@ -109,15 +115,50 @@ static void DomainAlgebra(TRegistry& reg, string grp)
 		reg.add_class_to_group(name, "ContactSmallStrainMechanics", tag);
 	}
 	
+//	Constrained grid functions
+	{
+		typedef ConstrainedGridFunction<TDomain, TAlgebra> T;
+		typedef GridFunction<TDomain, TAlgebra> TBase;
+		typedef ApproximationSpace<TDomain> approximation_space_type;
+		string name = string("ConstrainedGridFunction").append(suffix);
+		reg.template add_class_<T, TBase>(name, grp)
+			.template add_constructor<void (*)(SmartPtr<approximation_space_type>)>("ApproximationSpace")
+			.template add_constructor<void (*)(SmartPtr<approximation_space_type>, int)>("ApproximationSpace#Level")
+			.add_method("lower_bnd", &T::lower_bnd)
+			.add_method("upper_bnd", &T::upper_bnd)
+			.add_method("create_lower_bnd", &T::create_lower_bnd)
+			.add_method("create_upper_bnd", &T::create_upper_bnd)
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "ConstrainedGridFunction", tag);
+	}
+	
 //	Constraint for the Signorini boundary
 	{
 		typedef SignoriniConstraint<TDomain, TAlgebra> T;
 		typedef IDomainConstraint<TDomain, TAlgebra> TBase;
+		typedef typename T::obstacle_type TObstacle;
 		string name = string("SignoriniConstraint").append(suffix);
 		reg.template add_class_<T, TBase>(name, grp)
 			.template add_constructor<void (*)(SmartPtr<TDomain>,const char*,const char*)>("Domain#Functions#Flag")
+			.add_method("add", static_cast<void (T::*)(string, SmartPtr<TObstacle>)>(&T::add), "Subsets#Obstacle")
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "SignoriniConstraint", tag);
+	}
+
+// 	Constrained Gauss-Seidel method
+	{
+		typedef ObstacleGaussSeidel<TDomain, TAlgebra> T;
+		typedef IMatrixOperatorInverse<matrix_type, vector_type> TBase;
+		typedef DebugWritingObject<TAlgebra> TBase2;
+		string name = string("ObstacleGaussSeidel").append(suffix);
+		reg.template add_class_<T,TBase,TBase2>(name, grp, "Coordinate Direction Optimizer")
+			.add_constructor()
+			.add_method("set_contact_bnd_flag", static_cast<void (T::*) (const char*)>(&T::set_contact_bnd_flag), "set the name of the flag for contact bnd", "name")
+			.add_method("set_lower_bnd", static_cast<void (T::*) (const vector_type*)>(&T::set_lower_bnd), "set the vector of the lower bounds", "vector")
+			.add_method("set_upper_bnd", static_cast<void (T::*) (const vector_type*)>(&T::set_upper_bnd), "set the vector of the upper bounds", "vector")
+			.add_method("set_debug", static_cast<void (T::*) (SmartPtr<IDebugWriter<TAlgebra> >)>(&T::set_debug))
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "ObstacleGaussSeidel", tag);
 	}
 
 //	functionality for output
@@ -323,7 +364,7 @@ static void Domain(TRegistry& reg, string grp)
 	}
 
 //	Solid Mechanics Output Writer
-   {
+	{
 		typedef MechOutputWriter<TDomain> T;
 		string name = string("MechOutputWriter").append(suffix);
 		reg.template add_class_<T>(name, grp)
@@ -333,7 +374,20 @@ static void Domain(TRegistry& reg, string grp)
 			.add_method("post_timestep", &T::post_timestep)
 			.set_construct_as_smart_pointer(true);
 		reg.add_class_to_group(name, "MechOutputWriter", tag);
-   }
+	}
+
+//	Signorini obstacle
+	{
+		typedef SignoriniObstacle<TDomain> T;
+		typedef typename T::constr_value_type TValue;
+		typedef typename T::constr_dir_type TDir;
+		string name = string("SignoriniObstacle").append(suffix);
+		reg.template add_class_<T>(name, grp)
+			.add_constructor()
+			.template add_constructor<void (*)(SmartPtr<TValue>,SmartPtr<TDir>,string)>("Value#Direction#Subset")
+			.set_construct_as_smart_pointer(true);
+		reg.add_class_to_group(name, "SignoriniObstacle", tag);
+	}
 
 #ifdef UG_DIM_3
     reg.add_function("MarkAnisotropic_Longest_Scaled_Normal", &MarkAnisotropic_Longest_Scaled_Normal<TDomain>, grp, "", "");
@@ -358,20 +412,6 @@ static void Algebra(Registry& reg, string grp)
 //	typedefs for this algebra
 	typedef typename TAlgebra::vector_type vector_type;
 	typedef typename TAlgebra::matrix_type matrix_type;
-
-// 	LinearSolver
-	{
-		typedef ObstacleGaussSeidel<TAlgebra> T;
-		typedef IMatrixOperatorInverse<matrix_type, vector_type> TBase;
-		string name = string("ObstacleGaussSeidel").append(suffix);
-		reg.add_class_<T,TBase>(name, grp, "Coordinate Direction Optimizer")
-			.add_constructor()
-			.add_method("set_contact_bnd_flag", static_cast<void (T::*) (const char*)>(&T::set_contact_bnd_flag), "set the name of the flag for contact bnd", "name")
-			.add_method("set_lower_bnd", static_cast<void (T::*) (const vector_type*)>(&T::set_lower_bnd), "set the vector of the lower bounds", "vector")
-			.add_method("set_upper_bnd", static_cast<void (T::*) (const vector_type*)>(&T::set_upper_bnd), "set the vector of the upper bounds", "vector")
-			.set_construct_as_smart_pointer(true);
-		reg.add_class_to_group(name, "ObstacleGaussSeidel", tag);
-	}
 }
 
 /**

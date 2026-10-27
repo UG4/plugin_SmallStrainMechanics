@@ -38,8 +38,8 @@ namespace SmallStrainMechanics{
  * Compute the correction \f$ c \gets L^{-1} d \f$ by the constrained Gauss-Seidel
  * method
  */
-template <typename TAlgebra>
-bool ObstacleGaussSeidel<TAlgebra>::compute_correction
+template <typename TDomain, typename TAlgebra>
+bool ObstacleGaussSeidel<TDomain, TAlgebra>::compute_correction
 (
 	vector_type& c,	///< the correction to compute
 	const vector_type& d,	///< the provided defect
@@ -50,20 +50,29 @@ bool ObstacleGaussSeidel<TAlgebra>::compute_correction
 	typedef typename vector_type::value_type vector_block;
 	typedef typename matrix_type::const_row_iterator const_row_it;
 	
-	bool constrain = false;
+	vector_type* pLowBnd = NULL;
+	vector_type* pUpBnd = NULL;
 	
-	if(m_spLowerBnd.valid() || m_spUpperBnd.valid())
+	if(m_spLowerBnd.valid())
 	{
-		constrain = true;
-		
 		if(m_obst_bnd_flag_name.empty())
 			UG_THROW("Bounds specified but no flag name is given!");
-		if(m_spLowerBnd.valid() && m_spLowerBnd->size() != u.size())
+		pLowBnd = m_spLowerBnd.get();
+		if(pLowBnd->size() != u.size())
 			UG_THROW("Size of the lower bound vector is not equal to the size of the solution vector!");
-		if(m_spUpperBnd.valid() && m_spUpperBnd->size() != u.size())
+		if(! pLowBnd->flag_set_present(m_obst_bnd_flag[0]))
+			UG_THROW("Flag '" << m_obst_bnd_flag_name << "' is not present in the lower bound");
+	}
+	
+	if(m_spUpperBnd.valid())
+	{
+		if(m_obst_bnd_flag_name.empty())
+			UG_THROW("Bounds specified but no flag name is given!");
+		pUpBnd = m_spUpperBnd.get();
+		if(pUpBnd->size() != u.size())
 			UG_THROW("Size of the upper bound vector is not equal to the size of the solution vector!");
-		if(! u.flag_set_present(m_obst_bnd_flag[0]))
-			UG_THROW("Flag '" << m_obst_bnd_flag_name << "' is not present in the solution");
+		if(! pUpBnd->flag_set_present(m_obst_bnd_flag[0]))
+			UG_THROW("Flag '" << m_obst_bnd_flag_name << "' is not present in the upper bound");
 	}
 	
 	const size_t vec_len = c.size();
@@ -89,45 +98,41 @@ bool ObstacleGaussSeidel<TAlgebra>::compute_correction
 		
 		// check if we need to constrain the correction
 		flag_unit_type flags;
-		if(constrain)
-			flags = flagBlockFrame & flag_mng_type::flag_block
-				(u, i, m_obst_bnd_flag[0], m_obst_bnd_flag[1]);
-		else
-			flags = 0;
 		
-		if(flags)
+		if(pLowBnd) // constrain the correction from below
 		{
-			if(m_spLowerBnd.valid()) // constrain the correction from below
+			flags = flagBlockFrame & flag_mng_type::flag_block
+				(*pLowBnd, i, m_obst_bnd_flag[0], m_obst_bnd_flag[1]);
+			vector_block diff = (* pLowBnd)[i] - u[i];
+			for(int cmp = 0; cmp < blockSize; cmp++)
 			{
-				vector_block diff = (* m_spLowerBnd)[i] - u[i];
-				for(int cmp = 0; cmp < blockSize; cmp++)
+				if(((flags >> cmp) & 1)
+					&& BlockRef(t, cmp) > BlockRef(diff, cmp))
 				{
-					if(((flags >> cmp) & 1)
-						&& BlockRef(t, cmp) > BlockRef(diff, cmp))
-					{
-						// set the "Dirichlet row" and recompute the correction
-						for(size_t k = 0; k < blockSize; k++) BlockRef(A, i, k) = 0;
-						BlockRef(A, i, i) = 1;
-						BlockRef(s, i) = BlockRef(diff, i);
-						InverseMatMult(t, 1.0, A, s);
-					}
+					// set the "Dirichlet row" and recompute the correction
+                    for(size_t k = 0; k < blockSize; k++) BlockRef(A, cmp, k) = 0;
+                    BlockRef(A, cmp, cmp) = 1;
+                    BlockRef(s, cmp) = BlockRef(diff, cmp);
+					InverseMatMult(t, 1.0, A, s);
 				}
 			}
-			
-			if(m_spUpperBnd.valid()) // constrain the correction from above
+		}
+		
+		if(pUpBnd != NULL) // constrain the correction from above
+		{
+			flags = flagBlockFrame & flag_mng_type::flag_block
+				(*pUpBnd, i, m_obst_bnd_flag[0], m_obst_bnd_flag[1]);
+			vector_block diff = (* pUpBnd)[i] - u[i];
+			for(int cmp = 0; cmp < blockSize; cmp++)
 			{
-				vector_block diff = (* m_spUpperBnd)[i] - u[i];
-				for(int cmp = 0; cmp < blockSize; cmp++)
+				if(((flags >> cmp) & 1)
+					&& BlockRef(t, cmp) < BlockRef(diff, cmp))
 				{
-					if(((flags >> cmp) & 1)
-						&& BlockRef(t, cmp) < BlockRef(diff, cmp))
-					{
-						// set the "Dirichlet row" and recompute the correction
-						for(size_t k = 0; k < blockSize; k++) BlockRef(A, i, k) = 0;
-						BlockRef(A, i, i) = 1;
-						BlockRef(s, i) = BlockRef(diff, i);
-						InverseMatMult(t, 1.0, A, s);
-					}
+					// set the "Dirichlet row" and recompute the correction
+					for(size_t k = 0; k < blockSize; k++) BlockRef(A, cmp, k) = 0;
+					BlockRef(A, cmp, cmp) = 1;
+					BlockRef(s, cmp) = BlockRef(diff, cmp);
+					InverseMatMult(t, 1.0, A, s);
 				}
 			}
 		}
@@ -141,8 +146,8 @@ bool ObstacleGaussSeidel<TAlgebra>::compute_correction
 /**
  * The general iteration loop of the "non-linear linear solver"
  */
-template <typename TAlgebra>
-bool ObstacleGaussSeidel<TAlgebra>::apply
+template <typename TDomain, typename TAlgebra>
+bool ObstacleGaussSeidel<TDomain, TAlgebra>::apply
 (
 	vector_type& u, ///< the solution to compute
 	const vector_type& b ///< the right-hand side
@@ -157,7 +162,28 @@ bool ObstacleGaussSeidel<TAlgebra>::apply
 
 //	debug output
 	if(this->vector_debug_writer_valid())
-		write_debug(b, std::string("CGS_RHS") + ".vec");
+	{
+		write_debug(*m_pA, std::string("CGS_A.mat"));
+	}
+	
+//	try to get the constraints from the solution vector
+	cgf_type* cgf_u = dynamic_cast<cgf_type*>(&u);
+	if(cgf_u)
+	{
+		m_spLowerBnd = cgf_u->lower_bnd();
+		m_spUpperBnd = cgf_u->upper_bnd();
+		UG_LOG("ObstacleGaussSeidel::apply: Using the constraints from the solution vector.\n");
+	}
+	
+//	debug output
+	if(this->vector_debug_writer_valid())
+	{
+		write_debug(b, std::string("CGS_RHS.vec"));
+		if(m_spLowerBnd.valid())
+			write_debug(b, std::string("CGS_LowerBnd.vec"));
+		if(m_spUpperBnd.valid())
+			write_debug(b, std::string("CGS_UpperBnd.vec"));
+	}
 	
 // 	create correction
 	SmartPtr<vector_type> spC = u.clone_without_values();
@@ -232,8 +258,8 @@ bool ObstacleGaussSeidel<TAlgebra>::apply
 /**
  * Applies the method and converts the right-hand side b to the defect
  */
-template <typename TAlgebra>
-bool ObstacleGaussSeidel<TAlgebra>::apply_return_defect
+template <typename TDomain, typename TAlgebra>
+bool ObstacleGaussSeidel<TDomain, TAlgebra>::apply_return_defect
 (
 	vector_type& u, ///< solution to get
 	vector_type& d ///< initially the rhs, finally - the defect
