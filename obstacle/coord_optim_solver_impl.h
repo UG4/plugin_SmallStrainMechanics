@@ -107,7 +107,7 @@ bool ObstacleGaussSeidel<TDomain, TAlgebra>::compute_correction
 			for(int cmp = 0; cmp < blockSize; cmp++)
 			{
 				if(((flags >> cmp) & 1)
-					&& BlockRef(t, cmp) > BlockRef(diff, cmp))
+					&& BlockRef(t, cmp) < BlockRef(diff, cmp))
 				{
 					// set the "Dirichlet row" and recompute the correction
                     for(size_t k = 0; k < blockSize; k++) BlockRef(A, cmp, k) = 0;
@@ -126,7 +126,7 @@ bool ObstacleGaussSeidel<TDomain, TAlgebra>::compute_correction
 			for(int cmp = 0; cmp < blockSize; cmp++)
 			{
 				if(((flags >> cmp) & 1)
-					&& BlockRef(t, cmp) < BlockRef(diff, cmp))
+					&& BlockRef(t, cmp) > BlockRef(diff, cmp))
 				{
 					// set the "Dirichlet row" and recompute the correction
 					for(size_t k = 0; k < blockSize; k++) BlockRef(A, cmp, k) = 0;
@@ -180,9 +180,9 @@ bool ObstacleGaussSeidel<TDomain, TAlgebra>::apply
 	{
 		write_debug(b, std::string("CGS_RHS.vec"));
 		if(m_spLowerBnd.valid())
-			write_debug(b, std::string("CGS_LowerBnd.vec"));
+			write_debug(*m_spLowerBnd, std::string("CGS_LowerBnd.vec"));
 		if(m_spUpperBnd.valid())
-			write_debug(b, std::string("CGS_UpperBnd.vec"));
+			write_debug(*m_spUpperBnd, std::string("CGS_UpperBnd.vec"));
 	}
 	
 // 	create correction

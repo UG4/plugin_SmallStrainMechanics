@@ -115,7 +115,10 @@ void SignoriniConstraint<TDomain, TAlgebra>::mark_signorini_bnd_elem
 			for(size_t dp = 0; dp < n_dp; dp++)
 			{
 				MathVector<dim> dir = nrm_dir[dp];
-				dir[0] += 1;
+				dir[0] -= 1;
+                if(VecLength(dir) < 1e-14) // note that the original norm is normalized!
+                    continue; // no need to change the basis at this point
+                
 				MatHouseholder(dofTransform, dir);
 				
 				for(size_t f_i = 0; f_i < dim; f_i++)

@@ -172,7 +172,7 @@ protected:
 		if(!this->vector_debug_writer_valid()) return;
 		char ext[20]; snprintf(ext, sizeof(ext),"_iter%03d", loopCnt);
 		write_debug(d, std::string("CGS_Defect") + ext + ".vec");
-		if(bWriteC) write_debug(c, std::string("LS_Correction") + ext + ".vec");
+		if(bWriteC) write_debug(c, std::string("CGS_Correction") + ext + ".vec");
 		write_debug(x, std::string("CGS_Solution") + ext + ".vec");
 	}
 	

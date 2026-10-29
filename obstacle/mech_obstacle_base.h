@@ -379,7 +379,8 @@ protected:
 	{
 		vector_type v_t;
 		v_t.resize(v.size());
-		transform.axpy(v_t, 0.0, v_t, 1.0, v);
+		transform.axpy(v_t, 0.0, v, 1.0, v);
+        v = v_t;
 	}
 	
 private:
