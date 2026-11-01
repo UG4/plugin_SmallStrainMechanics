@@ -45,7 +45,7 @@ void SignoriniConstraint<TDomain, TAlgebra>::mark_signorini_bnd_elem
 	const DoFDistribution& dd, ///< DoF distribution of the solution
 	FunctionGroup& fctGrp, ///< function group of the displacement
 	matrix_type& transform, ///< the transformation (rotation) matrix
-	vector_type& bnd_gf, ///< distribution of the bound (and the flags)
+	vector_type* bnd_gf, ///< distribution of the bound (and the flags) - optionally
 	number time ///< the time argument
 )
 {
@@ -90,28 +90,29 @@ void SignoriniConstraint<TDomain, TAlgebra>::mark_signorini_bnd_elem
 					UG_THROW("SignoriniConstraint: Index number mismatch.");
 			}
 
-		//	get the bounds and the directions
-			bound.resize(vPos.size());
-			nrm_dir.resize(vPos.size());
-			(* (constr->value())) (&(bound[0]), &(vPos[0]), time, si, n_dp);
-			(* (constr->normal())) (&(nrm_dir[0]), &(vPos[0]), time, si, n_dp);
-		
 		//	set the flags, save the directions and the bounds
 			//	We mark only the first component in every DoF position:
 			//	After the rotation, only the first component is restricted.
 			//	For the same reason, we also store the bound only for the first component.
-			for(size_t dp = 0; dp < n_dp; dp++)
+			if(bnd_gf)
 			{
-				DoFFlagManager<algebra_type>::set_flag
-					(bnd_gf, multInd[0][dp][0],
-						m_bnd_flag[0], m_bnd_flag[1], multInd[0][dp][1]);
-				
-				DoFRef(bnd_gf, multInd[0][dp]) = bound[dp];
+				bound.resize(vPos.size());
+				(* (constr->value())) (&(bound[0]), &(vPos[0]), time, si, n_dp);
+				for(size_t dp = 0; dp < n_dp; dp++)
+				{
+					DoFFlagManager<algebra_type>::set_flag
+						(*bnd_gf, multInd[0][dp][0],
+							m_bnd_flag[0], m_bnd_flag[1], multInd[0][dp][1]);
+					
+					DoFRef(*bnd_gf, multInd[0][dp]) = bound[dp];
+				}
 			}
 			
-		//	compute the transformation
+		//	get the directions and compute the transformation
 			MathMatrix<dim,dim> dofTransform;
 			
+			nrm_dir.resize(vPos.size());
+			(* (constr->normal())) (&(nrm_dir[0]), &(vPos[0]), time, si, n_dp);
 			for(size_t dp = 0; dp < n_dp; dp++)
 			{
 				MathVector<dim> dir = nrm_dir[dp];
@@ -139,7 +140,7 @@ void SignoriniConstraint<TDomain, TAlgebra>::mark_signorini_bnd
 	const DoFDistribution& dd, ///< DoF distribution of the solution
 	FunctionGroup& fctGrp, ///< function group of the displacement
 	matrix_type& transform, ///< the transformation (rotation) matrix
-	vector_type& bnd_gf, ///< distribution of the bound (and the flags)
+	vector_type* bnd_gf, ///< distribution of the bound (and the flags)
 	number time ///< the time argument
 )
 {
@@ -147,16 +148,20 @@ void SignoriniConstraint<TDomain, TAlgebra>::mark_signorini_bnd
 		UG_THROW("SignoriniConstraint: Number of the functions is not equal to the dimensionality.");
 	
 //	check if the flags are present; if not, create them
-	DoFFlagManager<algebra_type>::get()->create_flags(bnd_gf);
-	for(size_t i = 0; i < bnd_gf.size(); i++)
-		DoFFlagManager<algebra_type>::set_flag_block
-			(bnd_gf, i, m_bnd_flag[0], m_bnd_flag[1], 0);
-	
-//	initialize the transform and the bound
-	bnd_gf.set(0.0); // set to zero to initialize everywhere (it is used only where the flags are set)
-	for(size_t i = 0; i < transform.num_rows(); i++) transform(i,i) = 1.0; // set to the identity matrix
+//	besides that prepare assembling of the bounds
+	if(bnd_gf)
+	{
+		DoFFlagManager<algebra_type>::get()->create_flags(*bnd_gf);
+		for(size_t i = 0; i < bnd_gf->size(); i++)
+			DoFFlagManager<algebra_type>::set_flag_block
+				(*bnd_gf, i, m_bnd_flag[0], m_bnd_flag[1], 0);
+		
+		bnd_gf->set(0.0); // set to zero to initialize everywhere (it is used only where the flags are set)
+	}
 	
 //	set the transform and the bound at the selected boundary
+	for(size_t i = 0; i < transform.num_rows(); i++) transform(i,i) = 1.0; // set to the identity matrix
+	
 	if(dd.max_dofs(VERTEX))
 		mark_signorini_bnd_elem<RegularVertex>(dd, fctGrp, transform, bnd_gf, time);
 	if(dd.max_dofs(EDGE))

@@ -234,14 +234,11 @@ public:
 								 const number s_a0 = 1.0)
 	{
 		matrix_type transform;
-		vector_type bnd_gf;
-		
 		transform.resize_and_clear(J.num_rows(), J.num_cols());
-		bnd_gf.resize(J.num_cols());
 		
 		FunctionGroup fctGrp (dd->function_pattern(), m_vsFctNames);
 		
-		mark_signorini_bnd(*dd, fctGrp, transform, bnd_gf, time);
+		mark_signorini_bnd(*dd, fctGrp, transform, NULL, time);
 		transform_matrix(transform, J);
 	}
 
@@ -253,14 +250,11 @@ public:
 							   const std::vector<number>* vScaleStiff = NULL)
 	{
 		matrix_type transform;
-		vector_type bnd_gf;
-		
 		transform.resize_and_clear(d.size(), d.size());
-		bnd_gf.resize(d.size());
 		
 		FunctionGroup fctGrp (dd->function_pattern(), m_vsFctNames);
 		
-		mark_signorini_bnd(*dd, fctGrp, transform, bnd_gf, time);
+		mark_signorini_bnd(*dd, fctGrp, transform, NULL, time);
 		transform_vector(transform, d);
 	}
 
@@ -269,14 +263,11 @@ public:
 							   ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0)
 	{
 		matrix_type transform;
-		vector_type bnd_gf;
-		
 		transform.resize_and_clear(mat.num_rows(), mat.num_cols());
-		bnd_gf.resize(mat.num_cols());
 		
 		FunctionGroup fctGrp (dd->function_pattern(), m_vsFctNames);
 		
-		mark_signorini_bnd(*dd, fctGrp, transform, bnd_gf, time);
+		mark_signorini_bnd(*dd, fctGrp, transform, NULL, time);
 		transform_matrix(transform, mat);
 		transform_vector(transform, rhs);
 	}
@@ -286,14 +277,11 @@ public:
 							ConstSmartPtr<DoFDistribution> dd, int type, number time = 0.0)
 	{
 		matrix_type transform;
-		vector_type bnd_gf;
-		
 		transform.resize_and_clear(rhs.size(), rhs.size());
-		bnd_gf.resize(rhs.size());
 		
 		FunctionGroup fctGrp (dd->function_pattern(), m_vsFctNames);
 		
-		mark_signorini_bnd(*dd, fctGrp, transform, bnd_gf, time);
+		mark_signorini_bnd(*dd, fctGrp, transform, NULL, time);
 		transform_vector(transform, rhs);
 	}
 
@@ -313,13 +301,11 @@ public:
 		else
 			bnd_gf = make_sp(new vector_type(u.size()));
         
-        (*bnd_gf) = 0; //ToDo: If we should do this here...
-		
 		transform.resize_and_clear(u.size(), u.size());
 		
 		FunctionGroup fctGrp (dd->function_pattern(), m_vsFctNames);
 		
-		mark_signorini_bnd(*dd, fctGrp, transform, *bnd_gf, time);
+		mark_signorini_bnd(*dd, fctGrp, transform, bnd_gf.get(), time);
 		transform_vector(transform, u);
 	}
 
@@ -342,7 +328,7 @@ private:
 		const DoFDistribution& dd, ///< DoF distribution of the solution
 		FunctionGroup& fctGrp, ///< function group of the displacement
 		matrix_type& transform, ///< the transformation (rotation) matrix
-		vector_type& bnd_gf, ///< distribution of the bound
+		vector_type* bnd_gf, ///< distribution of the bound and the flags - optionally
 		number time ///< the time argument
 	);
 
@@ -354,7 +340,7 @@ protected:
 		const DoFDistribution& dd, ///< DoF distribution of the solution
 		FunctionGroup& fctGrp, ///< function group of the displacement
 		matrix_type& transform, ///< the transformation (rotation) matrix
-		vector_type& bnd_gf, ///< distribution of the bound
+		vector_type* bnd_gf, ///< distribution of the bound and the flags - optionally
 		number time ///< the time argument
 	);
 	
