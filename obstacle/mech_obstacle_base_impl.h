@@ -116,9 +116,13 @@ void SignoriniConstraint<TDomain, TAlgebra>::mark_signorini_bnd_elem
 			for(size_t dp = 0; dp < n_dp; dp++)
 			{
 				MathVector<dim> dir = nrm_dir[dp];
+				number dir_len = VecLength(dir);
+				if(dir_len < 1e-8) // we expect that the direction is "well-scaled"
+					UG_THROW("SignoriniConstraint: Zero direction vector!");
+				VecScale(dir, dir, 1/dir_len);
 				dir[0] -= 1;
-                if(VecLength(dir) < 1e-14) // note that the original norm is normalized!
-                    continue; // no need to change the basis at this point
+                if(VecLength(dir) < 1e-14) // note that the direction is normalized!
+                    continue; // no need to change the basis at this point: It is the coordinate direction
                 
 				MatHouseholder(dofTransform, dir);
 				
